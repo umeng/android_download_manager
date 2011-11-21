@@ -296,20 +296,36 @@ public class FileDownloadActivity extends ListActivity {
 		if (!interrupt) { // 分段文件整合
 		    File file = new File(this.fileDir + this.fileName);
 		    if (file.exists()) file.delete();
-		    FileOutputStream randomFile = new FileOutputStream(file, true);
-			
+		    FileOutputStream randomFile = new FileOutputStream(file, true);	
 		    Log.i(TAG,"downloadFile writFile");
+		    
+		    int currentTotalSize = 0;
 		    for(int i = 0; i < threadNum; i++) {     			           			
-		    byte b[] = new byte [4096];
-    		    int j = 0;           			
-    		    InputStream input = new FileInputStream(threadList.get(i).getFile());
-    		    while((j = input.read(b)) > 0) {
-    			randomFile.write(b, 0, j);			    
-    		    }           			
-    		    input.close();
-    		    threadList.get(i).getFile().delete();
+			    byte b[] = new byte [4096];
+	    		    int j = 0;           			
+	    		    InputStream input = new FileInputStream(threadList.get(i).getFile());
+	    		    while((j = input.read(b)) > 0) {
+	    			randomFile.write(b, 0, j);
+	    			currentTotalSize += j;
+	    		    }           			
+	    		    input.close();
 		    }
-			
+		    
+		    // 检测数据流，少数情况下会出现下载数据流error,则部分线程需要重新下载
+		    if (currentTotalSize == totalSize) { 
+			    for(int i = 0; i < threadNum; i++) {     			           			
+				threadList.get(i).getFile().delete();
+			    }
+		    } else {
+			    for(int i = 0; i < threadNum; i++) {   
+				    long startPos = blockSize * i;
+				    long endPos = (((i + 1) / threadNum) == 1) ? totalSize - 1 : blockSize * (i + 1) - 1;
+				    if ((endPos - startPos + 1) != threadList.get(i).getDownloadSize()) {
+					threadList.get(i).getFile().delete();
+				    }
+				
+			    }
+		    }
 		    randomFile.close(); 
 		}
  
@@ -336,7 +352,7 @@ public class FileDownloadActivity extends ListActivity {
         	handler.sendMessage(message);
             }
             else if (!interrupt && (totalSize > 0 && totalSize < file.length())) {
-        	Message message = new Message();  
+        	Message message = new Message();  // 下载文件校检
 //	        message.what = MSG_START_DOWNLOAD;  
         	message.what = MSG_START_DOWNLOAD;
 	        message.arg1 = taskId;
