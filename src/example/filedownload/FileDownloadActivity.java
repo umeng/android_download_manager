@@ -1,7 +1,6 @@
 package example.filedownload;
 
 import java.io.File;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,8 +18,8 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import example.filedownload.pub.DownloadTask;
-import example.filedownload.pub.DownloadTaskListener;
+import example.filedownload.pub.DownloadListener;
+import example.filedownload.pub.DownloadMgr;
 
 /**
  * AsyncTask + HttpURLConnection (多线程断点)
@@ -38,34 +37,26 @@ public class FileDownloadActivity extends ListActivity {
     private static final int MSG_INSTALL_APK	 	= 5;
     private static final int MSG_CLOSE_ALL_DOWNLOAD_TASK 	= 6;
     
-    private DownloadTask tasks[];
+//    private DownloadTask tasks[];
+    private DownloadMgr tasks[];
     private ListAdapter adapter;
     
-    private DownloadTaskListener downloadListener = new DownloadTaskListener() {
+    private DownloadListener downloadListener = new DownloadListener() {
 
 	@Override
-	public void startDownload(String url) {
+	public void updateProcess(DownloadMgr mgr) {
+	    // TODO Auto-generated method stub
 	    for(int i = 0; i < Utils.url.length; i++) {
-		if (Utils.url[i].equalsIgnoreCase(url)) {
-		    FileDownloadActivity.this.startDownload(i);
-		}		
-	    }    
-	}
-
-	@Override
-	public void updateProcess(String url, String process) {
-	    for(int i = 0; i < Utils.url.length; i++) {
-		if (Utils.url[i].equalsIgnoreCase(url)) {
+		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
 		    FileDownloadActivity.this.updateDownload(i);
-		}		
-	    } 
+		}
+	    }
 	}
 
 	@Override
-	public void finishDownload(String url) {
-	    
+	public void finishDownload(DownloadMgr mgr) {
 	    for(int i = 0; i < Utils.url.length; i++) {
-		if (Utils.url[i].equalsIgnoreCase(url)) {
+		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
 		    Button btnStart = (Button)adapter.viewList.get(i).findViewById(R.id.btn_start);
 		    Button btnPause = (Button)adapter.viewList.get(i).findViewById(R.id.btn_pause);
 		    Button btnStop = (Button)adapter.viewList.get(i).findViewById(R.id.btn_stop);
@@ -77,10 +68,51 @@ public class FileDownloadActivity extends ListActivity {
 		    btnContinue.setVisibility(8);
 		    FileDownloadActivity.this.installAPK(i);
 		}		
-	    } 
+	    }
 	}
-       
+
     };
+    
+//    private DownloadTaskListener downloadListener = new DownloadTaskListener() {
+//
+//	@Override
+//	public void startDownload(String url) {
+//	    for(int i = 0; i < Utils.url.length; i++) {
+//		if (Utils.url[i].equalsIgnoreCase(url)) {
+//		    FileDownloadActivity.this.startDownload(i);
+//		}		
+//	    }    
+//	}
+//
+//	@Override
+//	public void updateProcess(String url, String process) {
+//	    for(int i = 0; i < Utils.url.length; i++) {
+//		if (Utils.url[i].equalsIgnoreCase(url)) {
+//		    FileDownloadActivity.this.updateDownload(i);
+//		}		
+//	    } 
+//	}
+//
+//	@Override
+//	public void finishDownload(String url) {
+//	    
+//	    for(int i = 0; i < Utils.url.length; i++) {
+//		if (Utils.url[i].equalsIgnoreCase(url)) {
+//		    Button btnStart = (Button)adapter.viewList.get(i).findViewById(R.id.btn_start);
+//		    Button btnPause = (Button)adapter.viewList.get(i).findViewById(R.id.btn_pause);
+//		    Button btnStop = (Button)adapter.viewList.get(i).findViewById(R.id.btn_stop);
+//		    Button btnContinue = (Button)adapter.viewList.get(i).findViewById(R.id.btn_continue);
+//
+//		    btnStart.setVisibility(0);
+//		    btnPause.setVisibility(8);
+//		    btnStop.setVisibility(8);
+//		    btnContinue.setVisibility(8);
+//		    FileDownloadActivity.this.installAPK(i);
+//		}		
+//	    } 
+//	}
+//       
+//    };
     
     private Runnable runnable = new Runnable() {
         
@@ -131,8 +163,7 @@ public class FileDownloadActivity extends ListActivity {
 	    case MSG_CLOSE_ALL_DOWNLOAD_TASK:
 		for(int i = 0; i < Utils.url.length; i++) {
 		    if (tasks[i] != null) {
-			tasks[i].onCancelled();
-			tasks[i] = null;
+			tasks[i].pause();
 		    }
 		}
 		break;
@@ -147,7 +178,8 @@ public class FileDownloadActivity extends ListActivity {
         adapter = new ListAdapter(this);
         setListAdapter(adapter);
              
-        tasks = new DownloadTask[Utils.url.length];
+//        tasks = new DownloadTask[Utils.url.length];
+        tasks = new DownloadMgr[Utils.url.length];
         handler.post(runnable);
     }
     
@@ -160,7 +192,7 @@ public class FileDownloadActivity extends ListActivity {
         TextView view = (TextView) convertView.findViewById(R.id.progress_text_view);
         view.setText( "" +
         (int) tasks[viewPos].getDownloadPercent() + "%" + " " + 
-        tasks[viewPos].getDownloadSpeed() + "kbps" + " " + 
+        tasks[viewPos].getCurrentSpeed() + "kbps" + " " + 
         Utils.size(tasks[viewPos].getDownloadSize()) + "/" + Utils.size(tasks[viewPos].getTotalSize()));
         
         Log.i(TAG,viewPos + " " + (int) tasks[viewPos].getDownloadPercent());
@@ -178,28 +210,23 @@ public class FileDownloadActivity extends ListActivity {
 	    }
 	    
 	    if (tasks[viewPos] != null) {
-		tasks[viewPos].onCancelled();
-		tasks[viewPos] = null;
+		tasks[viewPos].pause();
 	    }
+	    
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
 	    if (file.exists()) file.delete();			
-	    try {
-		tasks[viewPos] = new DownloadTask(this,
-		    Utils.url[viewPos], 
-		    Utils.APK_ROOT, Utils.getFileNameFromUrl(Utils.url[viewPos]),
-		        downloadListener);
-		tasks[viewPos].execute();
-	    } catch (MalformedURLException e) {
-		e.printStackTrace();
-	    }	    
+	    tasks[viewPos] = new DownloadMgr(this,
+			    Utils.url[viewPos], 
+			    Utils.APK_ROOT, Utils.getFileNameFromUrl(Utils.url[viewPos]),
+			     downloadListener);
+	    tasks[viewPos].start();   
     }
     
     public void pauseDownload(int viewPos) {
 	    if (tasks[viewPos] != null) {
-		tasks[viewPos].onCancelled();
+//		tasks[viewPos].onCancelled();
+		tasks[viewPos].pause();
 	    }
-	    
-	    tasks[viewPos] = null;
     }
     
     public void stopDownload(int viewPos) {
@@ -207,25 +234,15 @@ public class FileDownloadActivity extends ListActivity {
 	    if (file.exists()) file.delete();
 	    
 	    if (tasks[viewPos] != null) {
-		tasks[viewPos].onCancelled();
+//		tasks[viewPos].onCancelled();
+		tasks[viewPos].pause();
 	    }
 	    
 	    tasks[viewPos] = null;
     }
     
     public void continueDownload(int viewPos) {
-	    if (tasks[viewPos] == null) { 
-		try {
-		    tasks[viewPos] = new DownloadTask(this,
-		    	    Utils.url[viewPos], 
-		    	    Utils.APK_ROOT, Utils.getFileNameFromUrl(Utils.url[viewPos]),
-		    	    downloadListener);
-		    tasks[viewPos].execute();
-		} catch (MalformedURLException e) {
-		    e.printStackTrace();
-		}		
-
-	    }	
+	    tasks[viewPos].start();	
     }
     
     public void installAPK(int viewPos) {

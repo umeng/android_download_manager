@@ -22,11 +22,11 @@ public class Utils {
     	private static final long LOW_STORAGE_THRESHOLD = 1024 * 1024 * 10;
 	public static String[] title = {"”¶”√ª„","supercsman","simcitydeluxe_na"};  
 //	public static String[] url = {
-//	    "http://www.appchina.com/market/e/9999/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.yingyonghui.market.1320044233371.apk?refererPage=www.download",
-
+////	    "http://www.appchina.com/market/e/9999/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.yingyonghui.market.1320044233371.apk?refererPage=www.download",
+//	    "http://118.145.8.36/1.apk",
 ////	    "http://www.appchina.com/market/e/15239/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.supercsman.1320750838380.apk?refererPage=www.download",
-//	    "http://www.appchina.com/market/e/15358/download.pc/0/21196B4B4B00927E26E82F3DDE13C352/com.gameloft.android.ANMP.GloftIMRT.1321611354879.apk?refererPage=www.download",
-
+//	    "http://118.145.8.36/2.apk",
+//	    "http://118.145.8.36/3.apk"};
 //	    "http://www.appchina.com/market/e/15250/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.ea.simcitydeluxe_na.1320834962154.apk?refererPage=www.download"};
 	
 	public static String[] url = {
