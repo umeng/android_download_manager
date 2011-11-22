@@ -33,6 +33,7 @@ public class ImageActivity  extends Activity {
 
 	    @Override
 	    public void onClick(View v) {
+
 	        finish();
 	    }
             

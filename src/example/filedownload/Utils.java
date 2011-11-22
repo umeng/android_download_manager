@@ -11,6 +11,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+
 import android.net.Uri;
 import android.os.Environment;
 import android.os.StatFs;
@@ -22,8 +23,10 @@ public class Utils {
 	public static String[] title = {"”¶”√ª„","supercsman","simcitydeluxe_na"};  
 //	public static String[] url = {
 //	    "http://www.appchina.com/market/e/9999/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.yingyonghui.market.1320044233371.apk?refererPage=www.download",
+
 ////	    "http://www.appchina.com/market/e/15239/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.supercsman.1320750838380.apk?refererPage=www.download",
 //	    "http://www.appchina.com/market/e/15358/download.pc/0/21196B4B4B00927E26E82F3DDE13C352/com.gameloft.android.ANMP.GloftIMRT.1321611354879.apk?refererPage=www.download",
+
 //	    "http://www.appchina.com/market/e/15250/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.ea.simcitydeluxe_na.1320834962154.apk?refererPage=www.download"};
 	
 	public static String[] url = {

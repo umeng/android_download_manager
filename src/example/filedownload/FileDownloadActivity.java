@@ -127,6 +127,7 @@ public class FileDownloadActivity extends ListActivity {
 	        btnContinue.setVisibility(8);
 		installAPK(msg.arg1);
 		break;
+
 	    case MSG_CLOSE_ALL_DOWNLOAD_TASK:
 		for(int i = 0; i < Utils.url.length; i++) {
 		    if (tasks[i] != null) {
@@ -223,6 +224,7 @@ public class FileDownloadActivity extends ListActivity {
 		} catch (MalformedURLException e) {
 		    e.printStackTrace();
 		}		
+
 	    }	
     }
     

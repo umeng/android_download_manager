@@ -18,6 +18,7 @@
 	<Button 
 		android:id="@+id/btn_stop"
 		android:layout_width="fill_parent" 
+
 		android:layout_height="wrap_content"
 		android:text="停止"/>	
 	<Button 
