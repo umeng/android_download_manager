@@ -1,0 +1,9 @@
+#Tue Nov 22 14:24:24 CST 2011
+eclipse.preferences.version=1
+encoding//src/example/filedownload/FileDownloadActivity.java=UTF-8
+encoding//src/example/filedownload/ImageActivity.java=UTF-8
+encoding//src/example/filedownload/Utils.java=UTF-8
+encoding//src/example/filedownload/pub/DownloadListener.java=UTF-8
+encoding//src/example/filedownload/pub/DownloadMgr.java=UTF-8
+encoding/<project>=UTF-8
+separateDerivedEncodings=true

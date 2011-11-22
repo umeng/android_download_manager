@@ -20,7 +20,7 @@ import android.util.Log;
 public class Utils {
     	private static final String TAG = "Utils";
     	private static final long LOW_STORAGE_THRESHOLD = 1024 * 1024 * 10;
-	public static String[] title = {"Ó¦ÓÃ»ã","supercsman","simcitydeluxe_na"};  
+	public static String[] title = {"åº”ç”¨æ±‡","supercsman","simcitydeluxe_na"};  
 //	public static String[] url = {
 ////	    "http://www.appchina.com/market/e/9999/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.yingyonghui.market.1320044233371.apk?refererPage=www.download",
 //	    "http://118.145.8.36/1.apk",
@@ -41,7 +41,7 @@ public class Utils {
 	
 	
 	public static String getFileNameFromUrl(String url) {
-	    // Í¨¹ı ¡®£¿¡¯ ºÍ ¡®/¡¯ ÅĞ¶ÏÎÄ¼şÃû
+	    // é€šè¿‡ â€˜ï¼Ÿâ€™ å’Œ â€˜/â€™ åˆ¤æ–­æ–‡ä»¶å
 	    int index = url.lastIndexOf('?');
 	    String filename;
 	    if (index > 1) {
@@ -51,8 +51,8 @@ public class Utils {
 		filename = url.substring(url.lastIndexOf('/') + 1);
 	    }
 	    
-	    if(filename==null || "".equals(filename.trim())){//Èç¹û»ñÈ¡²»µ½ÎÄ¼şÃû³Æ
-		filename = UUID.randomUUID()+ ".apk";//Ä¬ÈÏÈ¡Ò»¸öÎÄ¼şÃû
+	    if(filename==null || "".equals(filename.trim())){//å¦‚æœè·å–ä¸åˆ°æ–‡ä»¶åç§°
+		filename = UUID.randomUUID()+ ".apk";//é»˜è®¤å–ä¸€ä¸ªæ–‡ä»¶å
 	    }
 	    return filename;
 	}
@@ -67,7 +67,7 @@ public class Utils {
 		context.startActivity(intent);
 	}
 	
-	//SDcard ²Ù×÷  
+	//SDcard æ“ä½œ  
 	public static boolean isSdCardWrittenable() {
 	    if (android.os.Environment.getExternalStorageState().equals(android.os.Environment.MEDIA_MOUNTED)) {
 		return true;
@@ -111,7 +111,7 @@ public class Utils {
 	public static Bitmap getLoacalBitmap(String url) {
 	        try {
 	             FileInputStream fis = new FileInputStream(url);
-	             return BitmapFactory.decodeStream(fis);  ///°ÑÁ÷×ª»¯ÎªBitmapÍ¼Æ¬        
+	             return BitmapFactory.decodeStream(fis);  ///æŠŠæµè½¬åŒ–ä¸ºBitmapå›¾ç‰‡        
 
 	          } catch (FileNotFoundException e) {
 	             e.printStackTrace();

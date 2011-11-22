@@ -19,7 +19,7 @@ public class ImageActivity  extends Activity {
         requestWindowFeature(Window.FEATURE_NO_TITLE); 
         setContentView(R.layout.main);
         
-	//»ñÈ¡BundleµÄÊı¾İ
+	//è·å–Bundleçš„æ•°æ®
         Intent intent=this.getIntent();
 	Bundle bl= intent.getExtras();
 	int pos =bl.getInt("url");
@@ -45,9 +45,9 @@ public class ImageActivity  extends Activity {
 	{
 		switch (resultCode)
 		{
-			//½á¹û·µ»Ø
+			//ç»“æœè¿”å›
 		case RESULT_OK:
-			//»ñÈ¡BundleµÄÊı¾İ
+			//è·å–Bundleçš„æ•°æ®
 			Bundle bl= data.getExtras();
 			int pos =bl.getInt("url");
 

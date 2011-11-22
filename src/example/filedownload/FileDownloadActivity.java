@@ -22,7 +22,7 @@ import example.filedownload.pub.DownloadListener;
 import example.filedownload.pub.DownloadMgr;
 
 /**
- * AsyncTask + HttpURLConnection (¶àÏß³Ì¶Ïµã)
+ * AsyncTask + HttpURLConnection (å¤šçº¿ç¨‹æ–­ç‚¹)
  * @author SuetMing
  * 2011-11-22	
  */
@@ -119,7 +119,7 @@ public class FileDownloadActivity extends ListActivity {
         @Override
         public void run() {
 	    while (!Utils.isNetworkAvailabel(FileDownloadActivity.this)) {
-		Toast.makeText(FileDownloadActivity.this, "ÍøÂçÒÑ¶Ï¿ª", Toast.LENGTH_LONG);
+		Toast.makeText(FileDownloadActivity.this, "ç½‘ç»œå·²æ–­å¼€", Toast.LENGTH_LONG);
 		Message msg = new Message();
 		msg.what = MSG_CLOSE_ALL_DOWNLOAD_TASK;
 		handler.sendMessage(msg);		
@@ -200,12 +200,12 @@ public class FileDownloadActivity extends ListActivity {
     
     public void startDownload(int viewPos) {
 	    if (!Utils.isSDCardPresent()) {
-		Toast.makeText(this, "Î´·¢ÏÖSD¿¨", Toast.LENGTH_LONG);
+		Toast.makeText(this, "æœªå‘ç°SDå¡", Toast.LENGTH_LONG);
 		return;
 	    }
 	    
 	    if (!Utils.isSdCardWrittenable()) {
-		Toast.makeText(this, "SD¿¨²»ÄÜ¶ÁĞ´", Toast.LENGTH_LONG);
+		Toast.makeText(this, "SDå¡ä¸èƒ½è¯»å†™", Toast.LENGTH_LONG);
 		return;
 	    }
 	    
@@ -330,7 +330,7 @@ public class FileDownloadActivity extends ListActivity {
 	            Button btnStop = (Button)viewList.get(viewPos).findViewById(R.id.btn_stop);
 	            Button btnContinue = (Button)viewList.get(viewPos).findViewById(R.id.btn_continue);
 
-	            // ÉèÖÃ°´Å¥¿Ø¼şµÄ¿É¼ûĞÔ  0 ¿É¼û£¬4 ²»Õ¼Î»²»¿É¼û £¬8  Õ¼Î»²»¿É¼û
+	            // è®¾ç½®æŒ‰é’®æ§ä»¶çš„å¯è§æ€§  0 å¯è§ï¼Œ4 ä¸å ä½ä¸å¯è§ ï¼Œ8  å ä½ä¸å¯è§
 	            btnStart.setVisibility(8);
 	            btnPause.setVisibility(0);
 	            btnStop.setVisibility(8);

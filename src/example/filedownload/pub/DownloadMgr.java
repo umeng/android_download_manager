@@ -84,13 +84,13 @@ public class DownloadMgr {
 	    private final static String TAG = "DownloadFileAsync";
 	    private final int threadNum = 5;
 	    private URL	 url;		
-	    private String fileName;		// ÏÂÔØÎÄ¼şÃû
-	    private String fileDir;		// ÏÂÔØÄ¿Â¼
+	    private String fileName;		// ä¸‹è½½æ–‡ä»¶å
+	    private String fileDir;		// ä¸‹è½½ç›®å½•
 
 	    private long totalSize = -1; 
 	    private boolean interrupt = false;
 	    
-	    private long networkSpeed;		// ÍøËÙ
+	    private long networkSpeed;		// ç½‘é€Ÿ
 	    private long downloadSize;
 	    private long downloadPercent;
 	    
@@ -182,19 +182,19 @@ public class DownloadMgr {
 	    	long previousTime = start;
 	    	long previousBytes = 0;
 	    	HttpURLConnection con = null;
-	    	// ´ò¿ªURLÁ¬½Ó
+	    	// æ‰“å¼€URLè¿æ¥
 	    	con = (HttpURLConnection) this.url.openConnection();
 	    	
-	    	// ÉèÖÃHttp Header
+	    	// è®¾ç½®Http Header
 	    	setHttpHeader(con);
 			
 		totalSize = con.getContentLength();
 			
-		// ¼ì²éÊÇ·ñSD¿¨¹»ÓÃ
+		// æ£€æŸ¥æ˜¯å¦SDå¡å¤Ÿç”¨
 		long storage = DownloadMgr.getAvailableStorage();
 		Log.i(TAG, "storage:" + storage);
 		if (totalSize > storage) {
-		    Toast.makeText(context, "SD ¿¨ÄÚ´æ²»×ã", Toast.LENGTH_LONG);
+		    Toast.makeText(context, "SD å¡å†…å­˜ä¸è¶³", Toast.LENGTH_LONG);
 		    interrupt = true;
 		    return;
 		}
@@ -213,7 +213,7 @@ public class DownloadMgr {
 		
 		long blockSize = totalSize / threadNum;
 		 
-		// ¿ªÆô·Ö¶ÎÏÂÔØÏß³Ì
+		// å¼€å¯åˆ†æ®µä¸‹è½½çº¿ç¨‹
 		for(int i = 0; i < threadNum; i++) {
 		    long startPos = blockSize * i;
 		    long endPos = (((i + 1) / threadNum) == 1) ? totalSize - 1 : blockSize * (i + 1) - 1;
@@ -243,7 +243,7 @@ public class DownloadMgr {
 			}
 		    }
 		    
-		    // Ã¿ 100 ms Ë¢ĞÂÏÔÊ¾Ò»´Î
+		    // æ¯ 100 ms åˆ·æ–°æ˜¾ç¤ºä¸€æ¬¡
 		    if (System.currentTimeMillis() - previousTime > 100) {
 			networkSpeed = (downloadSize - previousBytes) / (System.currentTimeMillis() - previousTime);
 			previousTime = System.currentTimeMillis();
@@ -260,7 +260,7 @@ public class DownloadMgr {
 		networkSpeed = downloadSize / (end - start);
 		Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
 		
-		if (!interrupt) { // ·Ö¶ÎÎÄ¼şÕûºÏ
+		if (!interrupt) { // åˆ†æ®µæ–‡ä»¶æ•´åˆ
 		    File file = new File(this.fileDir + this.fileName);
 		    if (file.exists()) file.delete();
 		    FileOutputStream randomFile = new FileOutputStream(file, true);	
@@ -278,7 +278,7 @@ public class DownloadMgr {
 	    		    input.close();
 		    }
 		            
-		    // ¼ì²âÊı¾İÁ÷£¬ÉÙÊıÇé¿öÏÂ»á³öÏÖÏÂÔØÊı¾İÁ÷error,Ôò²¿·ÖÏß³ÌĞèÒªÖØĞÂÏÂÔØ
+		    // æ£€æµ‹æ•°æ®æµï¼Œå°‘æ•°æƒ…å†µä¸‹ä¼šå‡ºç°ä¸‹è½½æ•°æ®æµerror,åˆ™éƒ¨åˆ†çº¿ç¨‹éœ€è¦é‡æ–°ä¸‹è½½
 		    if (currentTotalSize == totalSize) { 
 			    for(int i = 0; i < threadNum; i++) {     			           			
 				threadList.get(i).getFile().delete();
@@ -312,7 +312,7 @@ public class DownloadMgr {
 	        if (!interrupt && (totalSize > 0 && totalSize == file.length())) {
 	    	    listener.finishDownload(DownloadMgr.this);
 	        }
-	        else if (!interrupt && (totalSize > 0 && totalSize < file.length())) { // ÏÂÔØÎÄ¼şĞ£¼ì
+	        else if (!interrupt && (totalSize > 0 && totalSize < file.length())) { // ä¸‹è½½æ–‡ä»¶æ ¡æ£€
 		    DownloadMgr.this.start();
 	        }
 	        else if (totalSize < 0){
@@ -324,7 +324,7 @@ public class DownloadMgr {
 	        Log.i(TAG,"onPostExecute end");
 	    }
 	    
-	    // ÏÂÔØÏß³Ì
+	    // ä¸‹è½½çº¿ç¨‹
 	    public class DownloadThread extends Thread {
 	        private File file;
 	        private long startPos;
@@ -362,7 +362,7 @@ public class DownloadMgr {
 	        }
 	        
 	        /*
-	         * ·Ö¶ÎÏÂÔØ
+	         * åˆ†æ®µä¸‹è½½
 	         */
 	        private void downloadFile(File file,
 	        	long startPos, long endPos
