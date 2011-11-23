@@ -21,7 +21,6 @@ import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.StatFs;
 import android.util.Log;
-import android.widget.Toast;
 
 public class DownloadMgr {
     private final  static String TAG = "DownloadMgr";
@@ -82,6 +81,9 @@ public class DownloadMgr {
     
     private class DownloadTask extends AsyncTask<String, String, String> {
 	    private final static String TAG = "DownloadFileAsync";
+	    private final static int ERROR_SD_NO_MEMORY = 1;
+	    private final static int ERROR_BLOCK_INTERNET = 2;
+	    
 	    private final int threadNum = 5;
 	    private URL	 url;		
 	    private String fileName;		// 下载文件名
@@ -131,12 +133,13 @@ public class DownloadMgr {
 	    @Override
 	    protected void onPreExecute() {
 	        super.onPreExecute();
+	        listener.preDownload();
 	    }
 
 	    @Override
 	    public void onCancelled() {
 	        super.onCancelled();
-	        interrupt = true;          
+	        interrupt = true;    
 	    }
 	    
 	    @Override
@@ -194,7 +197,8 @@ public class DownloadMgr {
 		long storage = DownloadMgr.getAvailableStorage();
 		Log.i(TAG, "storage:" + storage);
 		if (totalSize > storage) {
-		    Toast.makeText(context, "SD 卡内存不足", Toast.LENGTH_LONG);
+//		    Toast.makeText(context, "SD 卡内存不足", Toast.LENGTH_LONG);
+		    listener.errorDownload(ERROR_SD_NO_MEMORY);
 		    interrupt = true;
 		    return;
 		}
@@ -228,6 +232,8 @@ public class DownloadMgr {
 		    if (startPos < (endPos + 1)) thread.start();
 		}
 
+		long errorBlockTimePreviousTime = -1;
+		long expireTime = 0;
 		while(downloadSize < totalSize) {
 		    Thread.sleep(1000);
 		    downloadSize = 0;
@@ -252,6 +258,23 @@ public class DownloadMgr {
 			downloadPercent = (int)((downloadSize*100)/totalSize);
 			publishProgress(""+ downloadPercent);
 			Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
+			
+			if (networkSpeed == 0) {
+			   if (errorBlockTimePreviousTime > 0) {
+			       expireTime = System.currentTimeMillis() - errorBlockTimePreviousTime;
+			       if (expireTime > 30000) {
+				   listener.errorDownload(ERROR_BLOCK_INTERNET);
+				   interrupt = true;
+			       }
+			   }
+			   else {
+			       errorBlockTimePreviousTime = System.currentTimeMillis();
+			   }
+			}
+			else {
+			    expireTime = 0;
+			    errorBlockTimePreviousTime = -1;
+			}
 		    }
 		  
 		}

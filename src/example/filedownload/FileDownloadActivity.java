@@ -71,6 +71,18 @@ public class FileDownloadActivity extends ListActivity {
 	    }
 	}
 
+	@Override
+	public void preDownload() {
+	    // TODO Auto-generated method stub
+	    Log.i(TAG,"preDownload");
+	}
+
+	@Override
+	public void errorDownload(int error) {
+	    // TODO Auto-generated method stub
+	    Log.i(TAG,"errorDownload");
+	}
+
     };
     
 //    private DownloadTaskListener downloadListener = new DownloadTaskListener() {
