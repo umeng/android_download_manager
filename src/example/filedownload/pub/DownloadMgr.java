@@ -75,17 +75,12 @@ public class DownloadMgr {
     }
     
     public void start() {
-	if (task != null) {
-	    Log.i(TAG, "Start download");
+	try {
+	    Log.i(TAG, "Continue download");
+	    task = new DownloadTask(url, filePath, listener);
 	    task.execute();
-	} else {
-		try {
-		    Log.i(TAG, "Continue download");
-		    task = new DownloadTask(url, filePath, listener);
-		    task.execute();
-		} catch (MalformedURLException e) {
-		    e.printStackTrace();
-		}
+	} catch (MalformedURLException e) {
+	    e.printStackTrace();
 	}	
     }
     
@@ -134,7 +129,7 @@ public class DownloadMgr {
 	    
 	    private final int threadNum = 50;		// Thread Num
 	    
-	    private final int blockNum = 5;		// Block Num
+	    private final int blockNum = 1;		// Block Num
 	    
 	    private ExecutorService executorService;
 	    
@@ -185,6 +180,7 @@ public class DownloadMgr {
 	    @Override
 	    protected void onPreExecute() {
 	        super.onPreExecute();
+	        if (listener != null)
 	        listener.preDownload();
 	    }
 
@@ -236,7 +232,7 @@ public class DownloadMgr {
 		for(int i = 0; i < blockNum; i++) {
 		    for(int j = 0; j < threadNum; j++) {
 			edit.putLong(getMD5Str(DownloadMgr.this.url + "i" + i + "j" + j), 
-			threadList.get(i * blockNum + j).getDownloadSize());
+			threadList.get(i * threadNum + j).getDownloadSize());
 		    }
 		}
 		edit.commit();
@@ -352,7 +348,7 @@ public class DownloadMgr {
 		    } else {
 			for(int i = 0; i < threadList.size(); i++) {
 			    downloadSize += threadList.get(i).getDownloadSize();
-			}
+			}	
 		    }
 		    
 		    // 每 100 ms 刷新显示一次
@@ -411,6 +407,7 @@ public class DownloadMgr {
 	    
 	    protected void onProgressUpdate(String... progress) {
 	         Log.d("ANDRO_ASYNC",progress[0]);
+	         if (listener != null)
 	         listener.updateProcess(DownloadMgr.this);
 	    }
 
@@ -424,6 +421,7 @@ public class DownloadMgr {
 	        if (!interrupt && (totalSize > 0 && totalSize <= downloadSize)) {
 	            clearDownloadRecord();
 	            Log.i(TAG,"finish download");
+	            if (listener != null)
 	    	    listener.finishDownload(DownloadMgr.this); 
 	        }
 	        else if (!interrupt && (totalSize > 0 && downloadSize < totalSize)) { // 下载文件校检
@@ -436,6 +434,7 @@ public class DownloadMgr {
 	        }
 	        else if (interrupt) {
 	            saveDownloadRecord();
+	            if (listener != null)
 	            listener.errorDownload(errStausCode);
 	    	    Log.i(TAG,"onPostExecute interrrupt true");	
 	        }
