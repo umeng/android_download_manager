@@ -3,6 +3,7 @@ package example.filedownload;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.text.DecimalFormat;
 import java.util.UUID;
 
 import android.content.Context;
@@ -11,7 +12,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-
 import android.net.Uri;
 import android.os.Environment;
 import android.os.StatFs;
@@ -21,20 +21,22 @@ public class Utils {
     	private static final String TAG = "Utils";
     	private static final long LOW_STORAGE_THRESHOLD = 1024 * 1024 * 10;
 	public static String[] title = {"应用汇","supercsman","simcitydeluxe_na"};  
-//	public static String[] url = {
+	public static String[] url = {
 ////	    "http://www.appchina.com/market/e/9999/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.yingyonghui.market.1320044233371.apk?refererPage=www.download",
-//	    "http://118.145.8.36/1.apk",
+	    "http://118.145.8.36/1.apk",
 ////	    "http://www.appchina.com/market/e/15239/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.supercsman.1320750838380.apk?refererPage=www.download",
 //	    "http://118.145.8.36/2.apk",
-//	    "http://118.145.8.36/3.apk"};
+	    "http://118.145.8.36/5.apk",
+	    "http://118.145.8.36/3.apk",
+	    };
 //	    "http://www.appchina.com/market/e/15250/download.pc/0/07AF54501F81A96C637B09726A6AEFD6/com.ea.simcitydeluxe_na.1320834962154.apk?refererPage=www.download"};
 	
-	public static String[] url = {
-	    "http://www.bz55.com/uploads/allimg/110613/125QC353-4.jpg",
-//	    "http://lensbuyersguide.com/gallery/219/2/23_iso100_14mm.jpg",
-	    "http://bz1111.com/d/2010-10/2010103021073576056.jpg",
-	    "http://www.lwdx.cn/UploadFiles/Photo/2009/2/bizhi/stzw20081005/stzw20081005_001.jpg"
-	};
+//	public static String[] url = {
+//	    "http://www.bz55.com/uploads/allimg/110613/125QC353-4.jpg",
+////	    "http://lensbuyersguide.com/gallery/219/2/23_iso100_14mm.jpg",
+//	    "http://bz1111.com/d/2010-10/2010103021073576056.jpg",
+//	    "http://www.lwdx.cn/UploadFiles/Photo/2009/2/bizhi/stzw20081005/stzw20081005_001.jpg"
+//	};
 	
 	public static String APK_ROOT = "/sdcard/";
 	public static int[] progress = {0,0,0};
@@ -139,10 +141,9 @@ public class Utils {
 	
 	public static String size(long size) {
 	    if (size / (1024 * 1024)  > 0) {
-//		float tmpSize = (float)(size) / (float)(1024 * 1024);
-//		Float.
-//		tmpSize
-		return "" + (size / (1024 * 1024)) + "MB";
+		float tmpSize = (float)(size) / (float)(1024 * 1024);
+		DecimalFormat df=new DecimalFormat("#.##");
+		return "" + df.format(tmpSize) + "MB";
 	    }
 	    else if (size / 1024 > 0) {
 		return "" + (size / (1024)) + "KB";

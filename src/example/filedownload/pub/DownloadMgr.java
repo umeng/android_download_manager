@@ -1,56 +1,92 @@
 package example.filedownload.pub;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.http.HttpStatus;
 import org.apache.http.client.ClientProtocolException;
 
-import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.StatFs;
 import android.util.Log;
-import android.widget.Toast;
 
 public class DownloadMgr {
     private final  static String TAG = "DownloadMgr";
+    public final static int ERROR_NONE = 0;
+    public final static int ERROR_SD_NO_MEMORY = 1;
+    private final static int ERROR_BLOCK_INTERNET = 2;
+    private final static int TIME_OUT = 30000;
     private String url;
-    private String fileDir;
-    private String fileName;
+    private String filePath;
     private DownloadTask task;
     private DownloadListener listener;
-    private Context context;
+    private File file;
+    private int errStausCode = ERROR_NONE;
+    private SharedPreferences preference;
     
-    public DownloadMgr(Context context, 
+    public DownloadMgr(
 	    String url, 
-	    String fileDir, 
-	    String fileName, 
+	    String filePath, SharedPreferences preference,
 	    DownloadListener listener) {
 	this.url = url;
-	this.fileDir = fileDir;
-	this.fileName = fileName;
-	this.context = context;
 	this.listener = listener;
+	this.filePath = filePath;
+	this.preference = preference;
+	initFile();
+	
+	try {
+	    task = new DownloadTask(url, filePath, listener);
+	} catch (MalformedURLException e) {
+	    e.printStackTrace();
+	}
+    }
+    
+    private void initFile() {
+	file = new File(this.filePath);
+	String path = file.getAbsolutePath();
+	int index = path.lastIndexOf('/');
+	String dir = path.substring(0, index - 1);
+	
+	File dirFile = new File(dir);
+	if (!dirFile.exists()) dirFile.mkdir();
+	
+	if (!file.exists())
+	    try {
+		file.createNewFile();
+	    } catch (IOException e) {
+		e.printStackTrace();
+	    }
     }
     
     public void start() {
-	    try {
-		task = new DownloadTask(context, url, fileDir, fileName, listener);
+	if (task != null) {
+	    Log.i(TAG, "Start download");
+	    task.execute();
+	} else {
+		try {
+		    Log.i(TAG, "Continue download");
+		    task = new DownloadTask(url, filePath, listener);
 		    task.execute();
-	    } catch (MalformedURLException e) {
-		e.printStackTrace();
-	    }	
+		} catch (MalformedURLException e) {
+		    e.printStackTrace();
+		}
+	}	
     }
     
     public void pause() {
@@ -61,55 +97,73 @@ public class DownloadMgr {
     }
     
     public long getDownloadPercent() {
-	return task.getDownloadPercent();
+	if (task != null)
+	    return task.getDownloadPercent();
+	else return 0;
     }
     
     public long getDownloadSize() {
-	return task.getDownloadSize();
+	if (task != null)
+	    return task.getDownloadSize();
+	else return 0;
     }
     
     public long getTotalSize() {
-	return task.getTotalSize();
+	if (task != null)
+	    return task.getTotalSize();
+	else return 0;
     }
     
     public long getCurrentSpeed() {
-	return task.getDownloadSpeed();
+	if (task != null)
+	    return task.getDownloadSpeed();
+	else return 0;
     }
     
     public String getUrl() {
 	return url;
     }
     
+    public void clearDownloadRecord() {
+	if (task != null)
+	    task.clearDownloadRecord();
+    }
+    
     private class DownloadTask extends AsyncTask<String, String, String> {
 	    private final static String TAG = "DownloadFileAsync";
-	    private final int threadNum = 5;
-	    private URL	 url;		
-	    private String fileName;		// 下载文件名
-	    private String fileDir;		// 下载目录
-
-	    private long totalSize = -1; 
-	    private boolean interrupt = false;
 	    
+	    private final int threadNum = 50;		// Thread Num
+	    
+	    private final int blockNum = 1;		// Block Num
+	    
+	    private ExecutorService executorService;
+	    
+	    private URL	 url;	
+	    private String filePath;		// 路径
+	    
+	    private long totalSize = -1; 
 	    private long networkSpeed;		// 网速
 	    private long downloadSize;
 	    private long downloadPercent;
 	    
-	    private Context context = null;
+	    private long[][] startPos = 	new long [blockNum][threadNum];
+	    private long[][] endPos = 		new long [blockNum][threadNum];
+	    private long[][] subSize = 	new long [blockNum][threadNum];
+	    
+	    private boolean interrupt = false;
 	    private DownloadListener listener = null;
-	    private List<DownloadThread> threadList = new ArrayList<DownloadThread>();
-	    
-	    
-	    public DownloadTask(Context context, 
+	    private List<DownloadThread> threadList = new ArrayList<DownloadThread>();	    
+		
+	    public DownloadTask(
 		    String url, 
-		    String fileDir, 
-		    String fileName, 
+		    String filePath, 
 		    DownloadListener listener) throws MalformedURLException {
-		this.context = context;
 		this.listener = listener;
 		
 		this.url = new URL(url);
-		this.fileDir = fileDir;
-		this.fileName = fileName;
+		this.filePath = filePath;
+				
+		executorService = Executors.newFixedThreadPool(threadNum);
 	    }
 		
 	    public long getDownloadPercent() {
@@ -131,12 +185,13 @@ public class DownloadMgr {
 	    @Override
 	    protected void onPreExecute() {
 	        super.onPreExecute();
+	        listener.preDownload();
 	    }
 
 	    @Override
 	    public void onCancelled() {
 	        super.onCancelled();
-	        interrupt = true;          
+	        interrupt = true;    
 	    }
 	    
 	    @Override
@@ -175,6 +230,30 @@ public class DownloadMgr {
 			}
 	    }
 	    
+	    private void saveDownloadRecord() {
+		Editor edit = preference.edit();
+		// 键值初始化
+		for(int i = 0; i < blockNum; i++) {
+		    for(int j = 0; j < threadNum; j++) {
+			edit.putLong(getMD5Str(DownloadMgr.this.url + "i" + i + "j" + j), 
+			threadList.get(i * blockNum + j).getDownloadSize());
+		    }
+		}
+//		edit.putLong(getMD5Str(DownloadMgr.this.url), totalSize);
+		edit.commit();
+	    }
+	    
+	    private void clearDownloadRecord() {
+		Editor edit = preference.edit();
+		for(int i = 0; i < blockNum; i++) {
+		    for(int j = 0; j < threadNum; j++) {
+			edit.remove(getMD5Str(DownloadMgr.this.url + "i" + i + "j" + j));
+		    }
+		}
+		
+		edit.commit();
+	    }
+	    
 	    private void downloadFile() throws ClientProtocolException, IOException, InterruptedException {
 	    	Log.i(TAG,"downloadFile");
 	    	
@@ -194,7 +273,7 @@ public class DownloadMgr {
 		long storage = DownloadMgr.getAvailableStorage();
 		Log.i(TAG, "storage:" + storage);
 		if (totalSize > storage) {
-		    Toast.makeText(context, "SD 卡内存不足", Toast.LENGTH_LONG);
+		    errStausCode = ERROR_SD_NO_MEMORY;
 		    interrupt = true;
 		    return;
 		}
@@ -210,35 +289,69 @@ public class DownloadMgr {
 		    downloadFile();
 		    return;
 		}
-		
-		long blockSize = totalSize / threadNum;
+				
+		// TODO
+		RandomAccessFile raf = new RandomAccessFile(file, "rw");
+		raf.setLength(totalSize);
+		raf.close();
 		 
-		// 开启分段下载线程
-		for(int i = 0; i < threadNum; i++) {
-		    long startPos = blockSize * i;
-		    long endPos = (((i + 1) / threadNum) == 1) ? totalSize - 1 : blockSize * (i + 1) - 1;
-		    File file = new File(this.fileDir + this.fileName + ".part" + i);
-		    if (file.exists()) {
-			startPos += file.length();
-			downloadSize += file.length();
+		// 开启分段下载线程	
+		long totalBlockSize = totalSize / blockNum; 
+		long remindTotalBlockSize = totalSize % blockNum;		
+		for (int i = 0; i < blockNum; i++) {
+		    long blockSize = ((i + 1) / blockNum * remindTotalBlockSize + totalBlockSize) / threadNum;
+		    long remindBlockSize = ((i + 1) / blockNum * remindTotalBlockSize + totalBlockSize) % threadNum;
+		    
+		    long startBlockPos = totalBlockSize * i;
+		    long endBlockPos = totalBlockSize * ((i + 1) % blockNum) + (totalSize - 1) * ((i + 1) / blockNum);
+		    for(int j = 0; j < threadNum; j++) {
+			subSize[i][j] = preference.getLong(getMD5Str(DownloadMgr.this.url + "i" + i + "j" + j), 0);
+			if (j == (threadNum - 1)) {
+			    if (i == (blockNum - 1)) {
+				    startPos[i][j] = 
+					    blockSize * j + 
+					    subSize[i][j] + 
+					    startBlockPos;
+				    endPos[i][j] = endBlockPos;
+			    }
+			    else {
+				    startPos[i][j] = 
+					    blockSize * j + 
+					    subSize[i][j] + 
+					    startBlockPos;
+				    endPos[i][j] = blockSize * (j + 1) + startBlockPos + remindBlockSize - 1;
+			    }
+			}
+			else {
+			    startPos[i][j] = 
+				    blockSize * j + 
+				    subSize[i][j] + 
+				    startBlockPos;
+			    endPos[i][j] = blockSize * (j + 1) + startBlockPos - 1;
+			}
+						
+			DownloadThread thread = new DownloadThread(subSize[i][j], startPos[i][j], endPos[i][j],i * blockNum + j);
+			threadList.add(thread);
+			if (startPos[i][j] < (endPos[i][j] + 1)) {
+			    executorService.execute(thread);
+			}			
+			Log.i(TAG, "DOWNLOADMGR: " + i+ " " + j + " STARTPOS:" + startPos[i][j] + " ENDPOS:" + endPos[i][j]);
 		    }
-			
-		    DownloadThread thread = new DownloadThread(file, startPos, endPos,i);
-		    threadList.add(thread);
-		    if (startPos < (endPos + 1)) thread.start();
 		}
 
+		long errorBlockTimePreviousTime = -1;
+		long expireTime = 0;
 		while(downloadSize < totalSize) {
 		    Thread.sleep(1000);
 		    downloadSize = 0;
 		    if (interrupt) {
-			for(int i = 0; i < threadNum; i++) {
+			for(int i = 0; i < threadList.size(); i++) {
 			    downloadSize += threadList.get(i).getDownloadSize();
 			    threadList.get(i).onCancel();
 			}
 			break;
 		    } else {
-			for(int i = 0; i < threadNum; i++) {
+			for(int i = 0; i < threadList.size(); i++) {
 			    downloadSize += threadList.get(i).getDownloadSize();
 			}
 		    }
@@ -254,47 +367,28 @@ public class DownloadMgr {
 			Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
 		    }
 		  
+			if (networkSpeed == 0) {
+				   if (errorBlockTimePreviousTime > 0) {
+				       expireTime = System.currentTimeMillis() - errorBlockTimePreviousTime;
+				       if (expireTime > TIME_OUT) {
+					   errStausCode = ERROR_BLOCK_INTERNET;
+					   interrupt = true;
+				       }
+				   }
+				   else {
+				       errorBlockTimePreviousTime = System.currentTimeMillis();
+				   }
+				}
+				else {
+				    expireTime = 0;
+				    errorBlockTimePreviousTime = -1;
+				}
 		}
 		
 		long end = System.currentTimeMillis();
 		networkSpeed = downloadSize / (end - start);
-		Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
 		
-		if (!interrupt) { // 分段文件整合
-		    File file = new File(this.fileDir + this.fileName);
-		    if (file.exists()) file.delete();
-		    FileOutputStream randomFile = new FileOutputStream(file, true);	
-		    Log.i(TAG,"downloadFile writFile");
-		    
-		    int currentTotalSize = 0;
-		    for(int i = 0; i < threadNum; i++) {     			           			
-			    byte b[] = new byte [4096];
-	    		    int j = 0;           			
-	    		    InputStream input = new FileInputStream(threadList.get(i).getFile());
-	    		    while((j = input.read(b)) > 0) {
-	    			randomFile.write(b, 0, j);
-	    			currentTotalSize += j;
-	    		    }           			
-	    		    input.close();
-		    }
-		            
-		    // 检测数据流，少数情况下会出现下载数据流error,则部分线程需要重新下载
-		    if (currentTotalSize == totalSize) { 
-			    for(int i = 0; i < threadNum; i++) {     			           			
-				threadList.get(i).getFile().delete();
-			    }
-		    } else {
-			    for(int i = 0; i < threadNum; i++) {   
-				    long startPos = blockSize * i;
-				    long endPos = (((i + 1) / threadNum) == 1) ? totalSize - 1 : blockSize * (i + 1) - 1;
-				    if ((endPos - startPos + 1) != threadList.get(i).getDownloadSize()) {
-					threadList.get(i).getFile().delete();
-				    }
-				
-			    }
-		    }
-		    randomFile.close(); 
-		}
+		Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
 
 		Log.i(TAG,"downloadFile end");
 	    }
@@ -306,19 +400,27 @@ public class DownloadMgr {
 
 	    @Override
 	    protected void onPostExecute(String unused) {
-	        File file = new File(this.fileDir + this.fileName);
+	        File file = new File(this.filePath); 
 	        
-	        Log.i(TAG,"onPostExecute" + "totalSize: " + totalSize + "file.length():" + file.length());
-	        if (!interrupt && (totalSize > 0 && totalSize == file.length())) {
-	    	    listener.finishDownload(DownloadMgr.this);
+	        Log.i(TAG,"onPostExecute" + "totalSize: " + totalSize + 
+	        	" file.length():" + file.length() + 
+	        	" downloadSize: " + downloadSize);
+	        if (!interrupt && (totalSize > 0 && totalSize <= downloadSize)) {
+	            clearDownloadRecord();
+	            Log.i(TAG,"finish download");
+	    	    listener.finishDownload(DownloadMgr.this); 
 	        }
-	        else if (!interrupt && (totalSize > 0 && totalSize < file.length())) { // 下载文件校检
+	        else if (!interrupt && (totalSize > 0 && downloadSize < totalSize)) { // 下载文件校检
+	            saveDownloadRecord();
 		    DownloadMgr.this.start();
 	        }
 	        else if (totalSize < 0){
+	            saveDownloadRecord();
 	            DownloadMgr.this.start();
 	        }
 	        else if (interrupt) {
+	            saveDownloadRecord();
+	            listener.errorDownload(errStausCode);
 	    	    Log.i(TAG,"onPostExecute interrrupt true");	
 	        }
 	        Log.i(TAG,"onPostExecute end");
@@ -326,20 +428,17 @@ public class DownloadMgr {
 	    
 	    // 下载线程
 	    public class DownloadThread extends Thread {
-	        private File file;
 	        private long startPos;
 	        private long endPos;
 	        private long downloadSize = -1;
 	        private InputStream in = null;
 	        private int id;
-	        public DownloadThread(File file, long startPos, long endPos, int id) {
-	        	this.file = file;
+	        public DownloadThread(long downloadSize, long startPos, long endPos, int id) {
 	        	this.startPos = startPos;
 	        	this.endPos = endPos;
 	        	this.id = id;
-	        	downloadSize = this.file.length();
+	        	this.downloadSize = downloadSize;
 	        }
-	        
 	       
 	        public void onCancel() {
 	    	interrupt = true;
@@ -355,31 +454,28 @@ public class DownloadMgr {
 	        
 	        public long getDownloadSize() {
 	    	return downloadSize;
-	        }
-	        
-	        public File getFile() {
-	    	return file;
-	        }
-	        
+	        }	        
+	        	        
 	        /*
 	         * 分段下载
 	         */
 	        private void downloadFile(File file,
 	        	long startPos, long endPos
 	        	) throws ClientProtocolException, IOException, InterruptedException {
-
+	            
 	        	HttpURLConnection con = (HttpURLConnection) url.openConnection();  
 	        	
-	        	setHttpHeader(con);
+	        	setHttpHeader(con);	        	
+	        	
 			con.setRequestProperty("Range", "bytes="+ startPos + "-" + endPos);
 			con.connect();
 			Log.i("Thread","ResponseCode: " + con.getResponseCode() + "thread ID: " + id);
 			
 			if (HttpStatus.SC_OK == con.getResponseCode() || 
 			    HttpStatus.SC_PARTIAL_CONTENT == con.getResponseCode()) {
-			    	in = con.getInputStream();
-			    	RandomAccessFile randomFile = new RandomAccessFile(file, "rw");  
-				randomFile.seek(randomFile.length());
+			    	in = con.getInputStream();		
+			    	RandomAccessFile randomFile = new RandomAccessFile(DownloadMgr.this.file, "rw"); 
+			    	randomFile.seek(startPos);
 				
 				long len = con.getContentLength();
 				Log.i(TAG,"Thread id:" + id + " len:" + len + " endPos - startPos + 1 :" + (endPos - startPos + 1));
@@ -387,13 +483,17 @@ public class DownloadMgr {
 				int j = 0;
 				long currentDownloadSize = 0;
 				
-				while((currentDownloadSize < (endPos - startPos + 1)) && 
+				while((currentDownloadSize < len) && 
 				      !interrupt) {
-				    Log.i(TAG,"Thread Read begin " + id + "endPos - startPos + 1 :" + (endPos - startPos + 1) + " currentDownloadSize : " + currentDownloadSize);
+				    Log.i(TAG,"Thread Read begin " + id + "endPos - startPos + 1 :" + (endPos - startPos + 1) + " currentDownloadSize : " + currentDownloadSize + " len:" + len);
 				    Log.i(TAG,"Thread id: " + id + " inputsteam:" + in.available());
 				    if (in.available() > 0) {
 					j = in.read(b);
-					    
+					if (j < 0) {
+					    Log.i(TAG,"downloadFile break" + id + " startPos:" + startPos + 
+							" endPos:" + endPos);
+					    break;
+					}
 					currentDownloadSize += j;
 					downloadSize += j;
 					randomFile.write(b, 0, j);
@@ -403,17 +503,17 @@ public class DownloadMgr {
 					randomFile.close();
 					con.disconnect();
 					Thread.sleep(5000);
-					downloadFile(file, startPos, endPos);
+					Log.i(TAG,"downloadFile again" + id + " startPos:" + startPos + 
+						" endPos:" + endPos);
+					downloadFile(file, startPos + currentDownloadSize, endPos);
 					break;
 				    }
-				    Thread.sleep(1000);
-				    Log.i(TAG,"Thread id" + id + "read:" + j);
-				}
+				    Thread.sleep(1000);		    
+				}   
 				Log.i(TAG,"Thread Read end " + id);
 				randomFile.close();
 				in.close();
 				con.disconnect();
-				
 				Log.i("Thread","Read end ");
 			}
 			else {
@@ -439,6 +539,9 @@ public class DownloadMgr {
 	    }
 	}
 
+    	/*
+    	 * 获取 SD 卡内存
+    	 */
 	public static long getAvailableStorage() {		
 
 		String storageDirectory = null;		
@@ -455,5 +558,35 @@ public class DownloadMgr {
 			Log.e(TAG, "getAvailableStorage - exception. return 0");
 			return 0;
 		}
+	}
+	
+	/*
+	 * MD5加密
+	 */
+	private static String getMD5Str(String str) {  
+	    MessageDigest msgDigit = null;
+	    try {
+		    msgDigit = MessageDigest.getInstance("MD5");
+		    msgDigit.reset();
+		    msgDigit.update(str.getBytes("UTF-8"));
+	    } catch (NoSuchAlgorithmException e) {
+		System.out.println("NoSuchAlgorithmException caught!");     
+		System.exit(-1);     
+	    } catch (UnsupportedEncodingException e) {     
+		e.printStackTrace();     
+	    } 
+	    
+	    byte[] byteArray = msgDigit.digest();   
+	    StringBuffer buf = new StringBuffer();  
+	    for (int i = 0; i < byteArray.length; i++) {
+		if (Integer.toHexString(0xFF & byteArray[i]).length() == 1) {
+		    buf.append("0").append(Integer.toHexString(0xFF & byteArray[i]));
+		}
+		else {
+		    buf.append(Integer.toHexString(0xFF & byteArray[i]));
+		}
+	    }
+	    //16位加密，从第9位到25位
+	    return buf.substring(8,24).toString().toUpperCase();
 	}
 }

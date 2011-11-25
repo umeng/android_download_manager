@@ -6,7 +6,6 @@ import java.util.List;
 
 import android.app.ListActivity;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -69,6 +68,18 @@ public class FileDownloadActivity extends ListActivity {
 		    FileDownloadActivity.this.installAPK(i);
 		}		
 	    }
+	}
+
+	@Override
+	public void preDownload() {
+	    // TODO Auto-generated method stub
+	    
+	}
+
+	@Override
+	public void errorDownload(int error) {
+	    // TODO Auto-generated method stub
+	    
 	}
 
     };
@@ -214,11 +225,15 @@ public class FileDownloadActivity extends ListActivity {
 	    }
 	    
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
-	    if (file.exists()) file.delete();			
-	    tasks[viewPos] = new DownloadMgr(this,
+	    if (file.exists()) file.delete();	
+	    // 更新记录		
+		
+	    tasks[viewPos] = new DownloadMgr(
 			    Utils.url[viewPos], 
-			    Utils.APK_ROOT, Utils.getFileNameFromUrl(Utils.url[viewPos]),
-			     downloadListener);
+			    Utils.APK_ROOT+Utils.getFileNameFromUrl(Utils.url[viewPos]),
+			    getSharedPreferences(TAG,Context.MODE_PRIVATE),
+			    downloadListener);
+	    tasks[viewPos].clearDownloadRecord();
 	    tasks[viewPos].start();   
     }
     
@@ -249,11 +264,11 @@ public class FileDownloadActivity extends ListActivity {
 	if (tasks[viewPos] != null) {
 	    tasks[viewPos] = null;
 	}
-//	Utils.installAPK(FileDownloadActivity.this, Utils.url[viewPos]);
+	Utils.installAPK(FileDownloadActivity.this, Utils.url[viewPos]);
 	
-	Intent intent = new Intent(FileDownloadActivity.this, ImageActivity.class);
-	intent.putExtra("url", viewPos);
-	startActivity(intent);
+//	Intent intent = new Intent(FileDownloadActivity.this, ImageActivity.class);
+//	intent.putExtra("url", viewPos);
+//	startActivity(intent);
     }
 
     private class ListAdapter extends BaseAdapter {
