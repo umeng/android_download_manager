@@ -134,7 +134,7 @@ public class DownloadMgr {
 	    
 	    private final int threadNum = 50;		// Thread Num
 	    
-	    private final int blockNum = 1;		// Block Num
+	    private final int blockNum = 5;		// Block Num
 	    
 	    private ExecutorService executorService;
 	    
@@ -239,7 +239,6 @@ public class DownloadMgr {
 			threadList.get(i * blockNum + j).getDownloadSize());
 		    }
 		}
-//		edit.putLong(getMD5Str(DownloadMgr.this.url), totalSize);
 		edit.commit();
 	    }
 	    
@@ -370,7 +369,7 @@ public class DownloadMgr {
 			   if (errorBlockTimePreviousTime > 0) {
 			       expireTime = System.currentTimeMillis() - errorBlockTimePreviousTime;
 			       if (expireTime > 30000) {
-				   listener.errorDownload(ERROR_BLOCK_INTERNET);
+				   errStausCode = ERROR_BLOCK_INTERNET;
 				   interrupt = true;
 			       }
 			   }
@@ -384,22 +383,22 @@ public class DownloadMgr {
 			}
 		    }
 		  
-			if (networkSpeed == 0) {
-				   if (errorBlockTimePreviousTime > 0) {
-				       expireTime = System.currentTimeMillis() - errorBlockTimePreviousTime;
-				       if (expireTime > TIME_OUT) {
-					   errStausCode = ERROR_BLOCK_INTERNET;
-					   interrupt = true;
-				       }
-				   }
-				   else {
-				       errorBlockTimePreviousTime = System.currentTimeMillis();
-				   }
-				}
-				else {
-				    expireTime = 0;
-				    errorBlockTimePreviousTime = -1;
-				}
+		    if (networkSpeed == 0) {
+			if (errorBlockTimePreviousTime > 0) {
+			    expireTime = System.currentTimeMillis() - errorBlockTimePreviousTime;
+			    if (expireTime > TIME_OUT) {
+				errStausCode = ERROR_BLOCK_INTERNET;
+				interrupt = true;
+			    }
+			}
+			else {
+			    errorBlockTimePreviousTime = System.currentTimeMillis();
+			}
+		    }
+		    else {
+			    expireTime = 0;
+			    errorBlockTimePreviousTime = -1;
+		    }
 		}
 		
 		long end = System.currentTimeMillis();
