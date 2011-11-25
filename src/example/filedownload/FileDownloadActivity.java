@@ -73,57 +73,16 @@ public class FileDownloadActivity extends ListActivity {
 	@Override
 	public void preDownload() {
 	    // TODO Auto-generated method stub
-	    
+	    Log.i(TAG,"preDownload");
 	}
 
 	@Override
 	public void errorDownload(int error) {
 	    // TODO Auto-generated method stub
-	    
+	    Log.i(TAG,"errorDownload");
 	}
 
     };
-    
-//    private DownloadTaskListener downloadListener = new DownloadTaskListener() {
-//
-//	@Override
-//	public void startDownload(String url) {
-//	    for(int i = 0; i < Utils.url.length; i++) {
-//		if (Utils.url[i].equalsIgnoreCase(url)) {
-//		    FileDownloadActivity.this.startDownload(i);
-//		}		
-//	    }    
-//	}
-//
-//	@Override
-//	public void updateProcess(String url, String process) {
-//	    for(int i = 0; i < Utils.url.length; i++) {
-//		if (Utils.url[i].equalsIgnoreCase(url)) {
-//		    FileDownloadActivity.this.updateDownload(i);
-//		}		
-//	    } 
-//	}
-//
-//	@Override
-//	public void finishDownload(String url) {
-//	    
-//	    for(int i = 0; i < Utils.url.length; i++) {
-//		if (Utils.url[i].equalsIgnoreCase(url)) {
-//		    Button btnStart = (Button)adapter.viewList.get(i).findViewById(R.id.btn_start);
-//		    Button btnPause = (Button)adapter.viewList.get(i).findViewById(R.id.btn_pause);
-//		    Button btnStop = (Button)adapter.viewList.get(i).findViewById(R.id.btn_stop);
-//		    Button btnContinue = (Button)adapter.viewList.get(i).findViewById(R.id.btn_continue);
-//
-//		    btnStart.setVisibility(0);
-//		    btnPause.setVisibility(8);
-//		    btnStop.setVisibility(8);
-//		    btnContinue.setVisibility(8);
-//		    FileDownloadActivity.this.installAPK(i);
-//		}		
-//	    } 
-//	}
-//       
-//    };
     
     private Runnable runnable = new Runnable() {
         
@@ -189,7 +148,6 @@ public class FileDownloadActivity extends ListActivity {
         adapter = new ListAdapter(this);
         setListAdapter(adapter);
              
-//        tasks = new DownloadTask[Utils.url.length];
         tasks = new DownloadMgr[Utils.url.length];
         handler.post(runnable);
     }
@@ -239,7 +197,6 @@ public class FileDownloadActivity extends ListActivity {
     
     public void pauseDownload(int viewPos) {
 	    if (tasks[viewPos] != null) {
-//		tasks[viewPos].onCancelled();
 		tasks[viewPos].pause();
 	    }
     }
@@ -249,7 +206,6 @@ public class FileDownloadActivity extends ListActivity {
 	    if (file.exists()) file.delete();
 	    
 	    if (tasks[viewPos] != null) {
-//		tasks[viewPos].onCancelled();
 		tasks[viewPos].pause();
 	    }
 	    
