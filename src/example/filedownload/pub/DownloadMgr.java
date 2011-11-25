@@ -131,19 +131,6 @@ public class DownloadMgr {
     
     private class DownloadTask extends AsyncTask<String, String, String> {
 	    private final static String TAG = "DownloadFileAsync";
-<<<<<<< HEAD
-=======
-	    private final static int ERROR_SD_NO_MEMORY = 1;
-	    private final static int ERROR_BLOCK_INTERNET = 2;
-	    
-	    private final int threadNum = 5;
-	    private URL	 url;		
-	    private String fileName;		// 下载文件名
-	    private String fileDir;		// 下载目录
-
-	    private long totalSize = -1; 
-	    private boolean interrupt = false;
->>>>>>> 3db5e1bee1cbd17a3a51bed4bbe7fe5872c390b1
 	    
 	    private final int threadNum = 50;		// Thread Num
 	    
@@ -286,12 +273,7 @@ public class DownloadMgr {
 		long storage = DownloadMgr.getAvailableStorage();
 		Log.i(TAG, "storage:" + storage);
 		if (totalSize > storage) {
-<<<<<<< HEAD
 		    errStausCode = ERROR_SD_NO_MEMORY;
-=======
-//		    Toast.makeText(context, "SD 卡内存不足", Toast.LENGTH_LONG);
-		    listener.errorDownload(ERROR_SD_NO_MEMORY);
->>>>>>> 3db5e1bee1cbd17a3a51bed4bbe7fe5872c390b1
 		    interrupt = true;
 		    return;
 		}
