@@ -1,391 +1,265 @@
 package example.filedownload.pub;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.RandomAccessFile;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
+import java.net.URLConnection;
 
-import org.apache.http.HttpStatus;
-import org.apache.http.client.ClientProtocolException;
-
-import android.content.Context;
 import android.os.AsyncTask;
+import android.os.Environment;
+import android.os.StatFs;
 import android.util.Log;
-import android.widget.Toast;
-import example.filedownload.Utils;
 
-public class DownloadTask extends AsyncTask<String, String, String> {
-    private final static String TAG = "DownloadFileAsync";
-    private final int threadNum = 5;
-    private URL	 url;
-    private String urlStr;		
-    private String fileName;		// ÏÂÔØÎÄ¼þÃû
-    private String fileDir;		// ÏÂÔØÄ¿Â¼
-
-    private long totalSize = -1; 
+public class DownloadTask extends AsyncTask<Void, Integer, Long> {
+    
+    public final static int ERROR_NONE = 0;
+    public final static int ERROR_SD_NO_MEMORY = 1;
+    public final static int ERROR_BLOCK_INTERNET = 2;
+    
+    private final static int BUFFER_SIZE = 1024 * 8;
+    
+    private Throwable exception;
+    private RandomAccessFile outputStream;
+    private String url;
+    private URL	 URL;
+    private File file;
+    private DownloadTaskListener listener;
+    private long downloadSize;
+    private long previousFileSize;
+    private long totalSize;
+    private long downloadPercent;
+    private long networkSpeed;		// ç½‘é€Ÿ
+    private long previousTime;
+    private int errStausCode = ERROR_NONE;
     private boolean interrupt = false;
     
-    private long networkSpeed;	// ÍøËÙ
-    private long downloadSize;
-    private long downloadPercent;
-    
-    private Context context = null;
-    private DownloadTaskListener listener = null;
-    private List<DownloadThread> threadList = new ArrayList<DownloadThread>();
-    
-    
-    public DownloadTask(Context context, 
-	    String url, 
-	    String fileDir, 
-	    String fileName, 
-	    DownloadTaskListener listener) throws MalformedURLException {
-	this.context = context;
-	this.listener = listener;
+    private final class ProgressReportingRandomAccessFile extends RandomAccessFile {
+	private int progress = 0;
 	
-	this.urlStr = url;
-	this.url = new URL(url);
-	this.fileDir = fileDir;
-	this.fileName = fileName;
+	public ProgressReportingRandomAccessFile(File file, String mode)
+		throws FileNotFoundException {
+	    super(file, mode);
+	}
+	
+	@Override
+	public void write(byte[] buffer, int offset, int count) throws IOException {
+	    super.write(buffer, offset, count);
+	    progress += count;		
+	    publishProgress(progress);
+	}
     }
-	
+    
+    public DownloadTask(String url, String path, DownloadTaskListener listener) throws MalformedURLException {
+	super();
+	this.url = url;
+	this.URL = new URL(url);
+	this.listener = listener;
+	String fileName = new File(URL.getFile()).getName();
+	this.file = new File(path, fileName);
+    }
+
+    public String getUrl() {
+	return url;
+    }
+    
     public long getDownloadPercent() {
-	return this.downloadPercent;
+	return downloadPercent;
+    }
+    
+    public long getDownloadSize() {
+	return downloadSize + previousFileSize;
+    }
+    
+    public long getTotalSize() {
+	return totalSize;
     }
     
     public long getDownloadSpeed() {
 	return this.networkSpeed;
     }
     
-    public long getTotalSize() {
-	return this.totalSize;
-    }
-    
-    public long getDownloadSize() {
-	return this.downloadSize;
-    }
-    
     @Override
     protected void onPreExecute() {
-        super.onPreExecute();
+
     }
 
     @Override
-    public void onCancelled() {
-        super.onCancelled();
-        interrupt = true;          
-    }
-    
-    @Override
-    protected String doInBackground(String... urls) {
-        try {
-    		Log.i(TAG,"doInBackground");
-    		downloadFile();
-	    } catch (ClientProtocolException e) {
-		Log.i(TAG, e.getMessage());
-		e.printStackTrace();
-	    } catch (IOException e) {
-		Log.i(TAG, e.getMessage());
-		e.printStackTrace();
-	    } catch (InterruptedException e) {
-		Log.i(TAG, e.getMessage());
-		e.printStackTrace();
+    protected Long doInBackground(Void... params) {
+	try {
+	    previousTime = System.currentTimeMillis();
+		return download();
+	    } catch (Exception e) {
+	      exception = e;
+	      return null;
 	    }
-	    return null;
-        
-    }
-    
-    private void setHttpHeader(HttpURLConnection con) {
-		con.setAllowUserInteraction(true);
-		con.setConnectTimeout(5000);
-		con.setDoOutput(true);
-		con.setReadTimeout(10000); 
-		con.setRequestProperty("Accept", "image/gif, image/jpeg, image/pjpeg, image/pjpeg, application/x-shockwave-flash, application/xaml+xml, application/vnd.ms-xpsdocument, application/x-ms-xbap, application/x-ms-application, application/vnd.ms-excel, application/vnd.ms-powerpoint, application/msword, */*");
-		con.setRequestProperty("Accept-Language", "zh-CN");
-		con.setRequestProperty("Referer", url.toString()); 
-		con.setRequestProperty("Charset", "UTF-8");
-		try {
-		    con.setRequestMethod("GET");
-		} catch (ProtocolException e) {
-		    
-		    e.printStackTrace();
-		}
-    }
-    
-    private void downloadFile() throws ClientProtocolException, IOException, InterruptedException {
-    	Log.i(TAG,"downloadFile");
-    	
-    	long start = System.currentTimeMillis();
-    	long previousTime = start;
-    	long previousBytes = 0;
-    	HttpURLConnection con = null;
-    	// ´ò¿ªURLÁ¬½Ó
-    	con = (HttpURLConnection) this.url.openConnection();
-    	
-    	// ÉèÖÃHttp Header
-    	setHttpHeader(con);
-		
-	totalSize = con.getContentLength();
-		
-	// ¼ì²éÊÇ·ñSD¿¨¹»ÓÃ
-	long storage = Utils.getAvailableStorage();
-	Log.i(TAG, "storage:" + storage);
-	if (totalSize > storage) {
-	    Toast.makeText(context, "SD ¿¨ÄÚ´æ²»×ã", Toast.LENGTH_LONG);
-	    interrupt = true;
-	    return;
-	}
-	
-	con.disconnect();
-	if (HttpStatus.SC_OK != con.getResponseCode()) {
-	    Log.i(TAG,"ResponseCode: " + con.getResponseCode());
-	    interrupt = true;
-	    return;
-	}
-		
-	if (totalSize < 0 && !interrupt) {
-	    downloadFile();
-	    return;
-	}
-	
-	long blockSize = totalSize / threadNum;
-	 
-	// ¿ªÆô·Ö¶ÎÏÂÔØÏß³Ì
-	for(int i = 0; i < threadNum; i++) {
-	    long startPos = blockSize * i;
-	    long endPos = (((i + 1) / threadNum) == 1) ? totalSize - 1 : blockSize * (i + 1) - 1;
-	    File file = new File(this.fileDir + this.fileName + ".part" + i);
-	    if (file.exists()) {
-		startPos += file.length();
-		downloadSize += file.length();
-	    }
-		
-	    DownloadThread thread = new DownloadThread(file, startPos, endPos,i);
-	    threadList.add(thread);
-	    if (startPos < (endPos + 1)) thread.start();
-	}
+	  }
 
-	while(downloadSize < totalSize) {
-	    Thread.sleep(1000);
-	    downloadSize = 0;
-	    if (interrupt) {
-		for(int i = 0; i < threadNum; i++) {
-		    downloadSize += threadList.get(i).getDownloadSize();
-		    threadList.get(i).onCancel();
-		}
-		break;
+	  @Override
+	  protected void onProgressUpdate(Integer... progress) {
+	    if (progress.length > 1) {
+	      totalSize = progress[1];
+	      if (totalSize == -1) {
+	        
+	      } else {
+	        
+	      }
 	    } else {
-		for(int i = 0; i < threadNum; i++) {
-		    downloadSize += threadList.get(i).getDownloadSize();
+		this.downloadSize = progress[0];
+		this.downloadPercent = (downloadSize + previousFileSize)* 100 / totalSize;
+		this.networkSpeed = downloadSize / (System.currentTimeMillis() - previousTime);
+		Log.v(null, ""+ downloadPercent + " " + totalSize + " " + downloadSize);
+		listener.updateProcess(this);
+	    }
+	  }
+
+	  @Override
+	  protected void onPostExecute(Long result) {
+	    if (interrupt) {
+		if (errStausCode != ERROR_NONE) {
+		    listener.errorDownload(errStausCode);
 		}
+	      return;
 	    }
 	    
-	    // Ã¿ 100 ms Ë¢ÐÂÏÔÊ¾Ò»´Î
-	    if (System.currentTimeMillis() - previousTime > 100) {
-		networkSpeed = (downloadSize - previousBytes) / (System.currentTimeMillis() - previousTime);
-		previousTime = System.currentTimeMillis();
-		previousBytes = downloadSize;
+	    if (exception != null) {
+		Log.v(null, "Download failed.", exception);
+	    }
+	    
+	    listener.finishDownload(this);
+	  }
+
+	  @Override
+	  public void onCancelled() {
+	      super.onCancelled();
+	      interrupt = true;
+	  }
+
+	  private long download() throws Exception {
+	    URLConnection connection = null;
+	    try {
+	      connection = URL.openConnection();
+	    } catch (IOException e) {
+		Log.v(null, "Cannot open URL: " + url, e);
+	    }
+
+	    totalSize = connection.getContentLength();
 		
-		downloadPercent = (int)((downloadSize*100)/totalSize);
-		publishProgress(""+ downloadPercent);
-		Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
+	    if (file.exists() && totalSize == file.length()) {
+		Log.v(null, "Output file already exists. Skipping download.");
+		return 0l;
+	    } else if (file.exists() && totalSize > file.length() && file.length() > 0) {
+		connection = URL.openConnection();
+		connection.setRequestProperty("Range", "bytes="+ file.length() + "-" + totalSize);
+		previousFileSize = file.length();
+		Log.v(null, "File is not complete, download now.");
+		Log.v(null, "File length:" + file.length() + " totalSize:" + totalSize);
+	    }
+	    
+	    long storage = getAvailableStorage();
+	    Log.i(null, "storage:" + storage + " totalSize:" + totalSize);
+	    if (totalSize - file.length() > storage) {
+		errStausCode = ERROR_SD_NO_MEMORY;
+		interrupt = true;
+		return 0l;
+	    }
+	    
+	    try {
+		outputStream = new ProgressReportingRandomAccessFile(file, "rw");
+	    } catch (FileNotFoundException e) {
+		Log.v(null, "OutputStream Error");
+	    }
+
+	    publishProgress(0, (int)totalSize);
+
+	    int bytesCopied = copy(connection.getInputStream(), outputStream);
+	    
+	    if (bytesCopied != totalSize && totalSize != -1) {
+	      throw new IOException("Download incomplete: " + bytesCopied + " != " + totalSize);
+	    }
+	    outputStream.close();
+	    Log.v(null, "Download completed successfully.");
+	    return bytesCopied;
+	  }
+	  
+	  public int copy(InputStream input, RandomAccessFile out) throws Exception, IOException {
+	      byte[] buffer = new byte[BUFFER_SIZE];
+
+	      BufferedInputStream in = new BufferedInputStream(input, BUFFER_SIZE);
+	      Log.v(null, "length" + out.length());
+	      out.seek(out.length());
+	      
+	      int count = 0, n = 0;
+	      try {
+	        while ((n = in.read(buffer, 0, BUFFER_SIZE)) != -1 && !interrupt) {
+	          out.write(buffer, 0, n);
+	          count += n;
+	        }
+	      } finally {
+	        try {
+	          out.close();
+	        } catch (IOException e) {
+	          Log.e(null,e.getMessage(), e);
+	        }
+	        try {
+	          in.close();
+	        } catch (IOException e) {
+	          Log.e(null,e.getMessage(), e);
+	        }
+	      }
+	      return count;
 	    }
 	  
-	}
-	
-	long end = System.currentTimeMillis();
-	networkSpeed = downloadSize / (end - start);
-	Log.i(TAG, "networkSpeed:" + networkSpeed + " kbps");
-	
-	if (!interrupt) { // ·Ö¶ÎÎÄ¼þÕûºÏ
-	    File file = new File(this.fileDir + this.fileName);
-	    if (file.exists()) file.delete();
-	    FileOutputStream randomFile = new FileOutputStream(file, true);	
-	    Log.i(TAG,"downloadFile writFile");
-	    
-	    int currentTotalSize = 0;
-	    for(int i = 0; i < threadNum; i++) {     			           			
-		    byte b[] = new byte [4096];
-    		    int j = 0;           			
-    		    InputStream input = new FileInputStream(threadList.get(i).getFile());
-    		    while((j = input.read(b)) > 0) {
-    			randomFile.write(b, 0, j);
-    			currentTotalSize += j;
-    		    }           			
-    		    input.close();
+	  public int copy(InputStream input, OutputStream output) throws Exception, IOException {
+	      byte[] buffer = new byte[BUFFER_SIZE];
+
+	      BufferedInputStream in = new BufferedInputStream(input, BUFFER_SIZE);
+	      BufferedOutputStream out = new BufferedOutputStream(output, BUFFER_SIZE);
+	      int count = 0, n = 0;
+	      try {
+	        while ((n = in.read(buffer, 0, BUFFER_SIZE)) != -1 && !interrupt) {
+	          out.write(buffer, 0, n);
+	          count += n;
+	        }
+	        out.flush();
+	      } finally {
+	        try {
+	          out.close();
+	        } catch (IOException e) {
+	          Log.e(null,e.getMessage(), e);
+	        }
+	        try {
+	          in.close();
+	        } catch (IOException e) {
+	          Log.e(null,e.getMessage(), e);
+	        }
+	      }
+	      return count;
 	    }
-	    
-	    // ¼ì²âÊý¾ÝÁ÷£¬ÉÙÊýÇé¿öÏÂ»á³öÏÖÏÂÔØÊý¾ÝÁ÷error,Ôò²¿·ÖÏß³ÌÐèÒªÖØÐÂÏÂÔØ
-	    if (currentTotalSize == totalSize) { 
-		    for(int i = 0; i < threadNum; i++) {     			           			
-			threadList.get(i).getFile().delete();
-		    }
-	    } else {
-		    for(int i = 0; i < threadNum; i++) {   
-			    long startPos = blockSize * i;
-			    long endPos = (((i + 1) / threadNum) == 1) ? totalSize - 1 : blockSize * (i + 1) - 1;
-			    if ((endPos - startPos + 1) != threadList.get(i).getDownloadSize()) {
-				threadList.get(i).getFile().delete();
-			    }
+	  
+	  /*
+	   * èŽ·å– SD å¡å†…å­˜
+	   */
+	  public static long getAvailableStorage() {		
+	      String storageDirectory = null;		
+	      storageDirectory = Environment.getExternalStorageDirectory().toString();
 			
-		    }
-	    }
-	    randomFile.close(); 
+	      Log.v(null, "getAvailableStorage. storageDirectory : " + storageDirectory);
+			
+	      try {
+		  StatFs stat = new StatFs(storageDirectory);
+		  long avaliableSize = ((long) stat.getAvailableBlocks() * (long) stat.getBlockSize());
+		  Log.v(null, "getAvailableStorage. avaliableSize : " + avaliableSize);
+		  return avaliableSize;
+	      } catch (RuntimeException ex) {
+		  Log.e(null, "getAvailableStorage - exception. return 0");
+		  return 0;
+		}
+	  }
 	}
-
-	Log.i(TAG,"downloadFile end");
-    }
-    
-    protected void onProgressUpdate(String... progress) {
-         Log.d("ANDRO_ASYNC",progress[0]);
-         
-         listener.updateProcess(this.urlStr, progress[0]);
-    }
-
-    @Override
-    protected void onPostExecute(String unused) {
-        File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(urlStr));
-        
-        Log.i(TAG,"onPostExecute" + "totalSize: " + totalSize + "file.length():" + file.length());
-        if (!interrupt && (totalSize > 0 && totalSize == file.length())) {
-    	    listener.finishDownload(this.urlStr);
-        }
-        else if (!interrupt && (totalSize > 0 && totalSize < file.length())) { // ÏÂÔØÎÄ¼þÐ£¼ì
-	    listener.startDownload(this.urlStr);
-        }
-        else if (totalSize < 0){
-            listener.startDownload(this.urlStr);
-        }
-        else if (interrupt) {
-    	    Log.i(TAG,"onPostExecute interrrupt true");	
-        }
-        Log.i(TAG,"onPostExecute end");
-    }
-    
-    // ÏÂÔØÏß³Ì
-    public class DownloadThread extends Thread {
-        public final static int TIMEOUT = 30;
-        private File file;
-        private long startPos;
-        private long endPos;
-        private long downloadSize = -1;
-        private InputStream in = null;
-        private int id;
-        public DownloadThread(File file, long startPos, long endPos, int id) {
-        	this.file = file;
-        	this.startPos = startPos;
-        	this.endPos = endPos;
-        	this.id = id;
-        	downloadSize = this.file.length();
-        }
-        
-       
-        public void onCancel() {
-    	interrupt = true;
-    	if (in != null) {
-		    try {
-			in.close();
-		    } catch (IOException e) {
-			Log.i(TAG, "Can not close inputstream");
-			e.printStackTrace();
-		    }
-    	}
-
-        }
-        
-        public long getDownloadSize() {
-    	return downloadSize;
-        }
-        
-        public void setDownloadSize(long size) {
-    	downloadSize = size;
-        }
-        
-        public File getFile() {
-    	return file;
-        }
-        
-        /*
-         * ·Ö¶ÎÏÂÔØ
-         */
-        private void downloadFile(File file,
-        	long startPos, long endPos
-        	) throws ClientProtocolException, IOException, InterruptedException {
-
-        	HttpURLConnection con = (HttpURLConnection) url.openConnection();  
-        	
-        	setHttpHeader(con);
-		con.setRequestProperty("Range", "bytes="+ startPos + "-" + endPos);
-		con.connect();
-		Log.i("Thread","ResponseCode: " + con.getResponseCode() + "thread ID: " + id);
-		
-		if (HttpStatus.SC_OK == con.getResponseCode() || 
-		    HttpStatus.SC_PARTIAL_CONTENT == con.getResponseCode()) {
-		    	in = con.getInputStream();
-		    	RandomAccessFile randomFile = new RandomAccessFile(file, "rw");  
-			randomFile.seek(randomFile.length());
-			
-			long len = con.getContentLength();
-			Log.i(TAG,"Thread id:" + id + " len:" + len + " endPos - startPos + 1 :" + (endPos - startPos + 1));
-			byte b[] = new byte [4096];
-			int j = 0;
-			long currentDownloadSize = 0;
-			
-			while((currentDownloadSize < (endPos - startPos + 1)) && 
-			      !interrupt) {
-			    Log.i(TAG,"Thread Read begin " + id + "endPos - startPos + 1 :" + (endPos - startPos + 1) + " currentDownloadSize : " + currentDownloadSize);
-			    Log.i(TAG,"Thread id: " + id + " inputsteam:" + in.available());
-			    if (in.available() > 0) {
-				j = in.read(b);
-				    
-				currentDownloadSize += j;
-				downloadSize += j;
-				randomFile.write(b, 0, j);
-				
-			    } else {
-				in.close();
-				randomFile.close();
-				con.disconnect();
-				Thread.sleep(5000);
-				downloadFile(file, startPos, endPos);
-				break;
-			    }
-			    Thread.sleep(1000);
-			    Log.i(TAG,"Thread id" + id + "read:" + j);
-			}
-			Log.i(TAG,"Thread Read end " + id);
-			randomFile.close();
-			in.close();
-			con.disconnect();
-			
-			Log.i("Thread","Read end ");
-		}
-		else {
-		    interrupt = true;
-		}
-        }
-        
-        @Override
-        public void run() {
-    	try {
-		    downloadFile(file, startPos, endPos);
-		} catch (ClientProtocolException e) {
-		    e.printStackTrace();
-		    Log.i("Thread","" + id + "err: " + e.getMessage());
-		} catch (IOException e) {
-		    Log.i("Thread","" + id + "err: " + e.getMessage());
-		    e.printStackTrace();
-		} catch (InterruptedException e) {
-		    Log.i("Thread","" + id + "err: " + e.getMessage());
-		    e.printStackTrace();
-		}
-        }
-    }
-}

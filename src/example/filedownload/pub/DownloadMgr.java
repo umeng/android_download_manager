@@ -1,6 +1,7 @@
 package example.filedownload.pub;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
@@ -27,51 +28,40 @@ import android.os.StatFs;
 import android.util.Log;
 
 public class DownloadMgr {
-    private final  static String TAG = "DownloadMgr";
     public final static int ERROR_NONE = 0;
     public final static int ERROR_SD_NO_MEMORY = 1;
-    private final static int ERROR_BLOCK_INTERNET = 2;
+    public final static int ERROR_BLOCK_INTERNET = 2;
+    
+    private final static String TAG = "DownloadMgr";
     private final static int TIME_OUT = 30000;
-    private String url;
+    
     private String filePath;
     private DownloadTask task;
     private DownloadListener listener;
     private File file;
+    private String url;
+    private URL URL;
     private int errStausCode = ERROR_NONE;
     private SharedPreferences preference;
     
     public DownloadMgr(
 	    String url, 
 	    String filePath, SharedPreferences preference,
-	    DownloadListener listener) {
+	    DownloadListener listener) throws MalformedURLException {
 	this.url = url;
+	this.URL = new URL(url);
 	this.listener = listener;
 	this.filePath = filePath;
 	this.preference = preference;
-	initFile();
+	
+	String fileName = new File(this.URL.getFile()).getName();
+	this.file = new File(filePath, fileName);
 	
 	try {
 	    task = new DownloadTask(url, filePath, listener);
 	} catch (MalformedURLException e) {
 	    e.printStackTrace();
 	}
-    }
-    
-    private void initFile() {
-	file = new File(this.filePath);
-	String path = file.getAbsolutePath();
-	int index = path.lastIndexOf('/');
-	String dir = path.substring(0, index - 1);
-	
-	File dirFile = new File(dir);
-	if (!dirFile.exists()) dirFile.mkdir();
-	
-	if (!file.exists())
-	    try {
-		file.createNewFile();
-	    } catch (IOException e) {
-		e.printStackTrace();
-	    }
     }
     
     public void start() {
@@ -127,7 +117,7 @@ public class DownloadMgr {
     private class DownloadTask extends AsyncTask<String, String, String> {
 	    private final static String TAG = "DownloadFileAsync";
 	    
-	    private final int threadNum = 50;		// Thread Num
+	    private final int threadNum = 1;		// Thread Num
 	    
 	    private final int blockNum = 1;		// Block Num
 	    
@@ -231,6 +221,7 @@ public class DownloadMgr {
 		// 键值初始化
 		for(int i = 0; i < blockNum; i++) {
 		    for(int j = 0; j < threadNum; j++) {
+			if (threadList.size() > (i * threadNum + j))
 			edit.putLong(getMD5Str(DownloadMgr.this.url + "i" + i + "j" + j), 
 			threadList.get(i * threadNum + j).getDownloadSize());
 		    }
@@ -429,7 +420,7 @@ public class DownloadMgr {
 		    DownloadMgr.this.start();
 	        }
 	        else if (totalSize < 0){
-	            saveDownloadRecord();
+//	            saveDownloadRecord();
 	            DownloadMgr.this.start();
 	        }
 	        else if (interrupt) {
@@ -441,6 +432,7 @@ public class DownloadMgr {
 	        Log.i(TAG,"onPostExecute end");
 	    }
 	    
+
 	    // 下载线程
 	    public class DownloadThread extends Thread {
 	        private long startPos;
@@ -489,12 +481,12 @@ public class DownloadMgr {
 			if (HttpStatus.SC_OK == con.getResponseCode() || 
 			    HttpStatus.SC_PARTIAL_CONTENT == con.getResponseCode()) {
 			    	in = con.getInputStream();		
-			    	RandomAccessFile randomFile = new RandomAccessFile(DownloadMgr.this.file, "rw"); 
-			    	randomFile.seek(startPos);
-				
+//			    	RandomAccessFile randomFile = new RandomAccessFile(DownloadMgr.this.file, "rw"); 
+//			    	randomFile.seek(startPos);
+				FileOutputStream randomFile = new FileOutputStream(DownloadMgr.this.file);
 				long len = con.getContentLength();
 				Log.i(TAG,"Thread id:" + id + " len:" + len + " endPos - startPos + 1 :" + (endPos - startPos + 1));
-				byte b[] = new byte [4096];
+				byte b[] = new byte [1024 * 8];
 				int j = 0;
 				long currentDownloadSize = 0;
 				
@@ -523,7 +515,7 @@ public class DownloadMgr {
 					downloadFile(file, startPos + currentDownloadSize, endPos);
 					break;
 				    }
-				    Thread.sleep(1000);		    
+//				    Thread.sleep(1000);		    
 				}   
 				Log.i(TAG,"Thread Read end " + id);
 				randomFile.close();
@@ -604,4 +596,5 @@ public class DownloadMgr {
 	    //16位加密，从第9位到25位
 	    return buf.substring(8,24).toString().toUpperCase();
 	}
+	
 }

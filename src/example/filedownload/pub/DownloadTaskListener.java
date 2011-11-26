@@ -1,9 +1,8 @@
 package example.filedownload.pub;
 
 public interface DownloadTaskListener {
-    public void startDownload(String url);		// 开始下载
-    
-    public void updateProcess(String url, String process);	// 更新进度
-    
-    public void finishDownload(String url);		// 完成下载
+    public void updateProcess(DownloadTask t);			// 鏇存柊杩涘害
+    public void finishDownload(DownloadTask mgr);			// 瀹屾垚涓嬭浇
+    public void preDownload();					// 鍑嗗涓嬭浇
+    public void errorDownload(int error);				// 涓嬭浇閿欒
 }
