@@ -10,9 +10,7 @@ import java.net.URL;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.os.AsyncTask;
 import android.os.Environment;
@@ -171,8 +169,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	    if (file.exists() && totalSize == file.length()) {
 		Log.v(null, "Output file already exists. Skipping download.");
 		return 0l;
-	    } else if (file.exists() && totalSize > file.length() && file.length() > 0) {
-//		
+	    } else if (file.exists() && totalSize > file.length() && file.length() > 0) {	
 //		connection = URL.openConnection();
 //		connection.setRequestProperty("Range", "bytes="+ file.length() + "-" + totalSize);
 //		previousFileSize = file.length();
@@ -183,7 +180,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 		httpGet.addHeader("Range", "bytes="+ file.length() + "-" + totalSize);
 		response = client.execute(httpGet);   		      
 		entity = response.getEntity();
-		previousFileSize = entity.getContentLength();     
+		previousFileSize = file.length();     
 
 		Log.v(null, "File is not complete, download now.");
 		Log.v(null, "File length:" + file.length() + " totalSize:" + totalSize);
