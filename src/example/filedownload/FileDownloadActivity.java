@@ -40,6 +40,7 @@ public class FileDownloadActivity extends ListActivity {
     private static final int MSG_CLOSE_ALL_DOWNLOAD_TASK 	= 6;
     
     private DownloadTask tasks[];
+//    private DownloadTask tasks[];
 //    private DownloadMgr tasks[];
     private ListAdapter adapter;
     private DownloadTaskListener downloadTaskListener = new DownloadTaskListener() {
@@ -69,6 +70,17 @@ public class FileDownloadActivity extends ListActivity {
 		    btnContinue.setVisibility(8);
 		    Log.i("TEST", "" + mgr.getTotalSize() + " " + mgr.getTotalTime() + " " + mgr.getDownloadSpeed());
 		    FileDownloadActivity.this.installAPK(i);
+		    
+//		    Log.v(null, "Test threadNum:" + Downloader.THREADNUM +
+//			    " totalSize:" + mgr.getTotalSize() + 
+//			    " totalTIme:" + mgr.getTotalTime() +
+//			    " speed:" + mgr.getDownloadSpeed()
+//			    );
+		    
+//		    if (Downloader.THREADNUM <= 30) {
+//			Downloader.THREADNUM += 5;
+//			startDownload(i);
+//		    }
 		}		
 	    }
 	}
@@ -195,6 +207,7 @@ public class FileDownloadActivity extends ListActivity {
         setListAdapter(adapter);
              
 //        tasks = new DownloadMgr[Utils.url.length];
+//        tasks = new DownloadTask[Utils.url.length];
         tasks = new DownloadTask[Utils.url.length];
         handler.post(runnable);
     }
@@ -211,10 +224,10 @@ public class FileDownloadActivity extends ListActivity {
         tasks[viewPos].getDownloadSpeed() + "kbps" + " " + 
         Utils.size(tasks[viewPos].getDownloadSize()) + "/" + Utils.size(tasks[viewPos].getTotalSize()));
         
-        Log.i(TAG,viewPos + " " + (int) tasks[viewPos].getDownloadPercent());
+//        Log.i(TAG,viewPos + " " + (int) tasks[viewPos].getDownloadPercent());
     }
     
-    public void startDownload(int viewPos) {	
+    public synchronized void startDownload(int viewPos) {	
 	    if (!Utils.isSDCardPresent()) {
 		Toast.makeText(this, "未发现SD卡", Toast.LENGTH_LONG);
 		return;
@@ -264,14 +277,14 @@ public class FileDownloadActivity extends ListActivity {
 //	    tasks[viewPos].start();   
     }
     
-    public void pauseDownload(int viewPos) {
+    public synchronized void pauseDownload(int viewPos) {
 	    if (tasks[viewPos] != null) {
 //		tasks[viewPos].pause();
 		tasks[viewPos].onCancelled();
 	    }
     }
     
-    public void stopDownload(int viewPos) {
+    public synchronized void stopDownload(int viewPos) {
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
 	    if (file.exists()) file.delete();
 	    
@@ -282,7 +295,7 @@ public class FileDownloadActivity extends ListActivity {
 	    tasks[viewPos] = null;
     }
     
-    public void continueDownload(int viewPos) {
+    public synchronized void continueDownload(int viewPos) {
 //	    tasks[viewPos].start();	
 //	startDownload(viewPos);
 	    try {
