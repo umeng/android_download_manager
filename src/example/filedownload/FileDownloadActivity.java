@@ -20,8 +20,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 import example.filedownload.pub.DownloadListener;
 import example.filedownload.pub.DownloadMgr;
-import example.filedownload.pub.DownloadTask;
-import example.filedownload.pub.DownloadTaskListener;
+import example.filedownload.pub.Downloader;
+import example.filedownload.pub.DownloaderListener;
 
 /**
  * AsyncTask + HttpURLConnection (多线程断点)
@@ -39,13 +39,14 @@ public class FileDownloadActivity extends ListActivity {
     private static final int MSG_INSTALL_APK	 	= 5;
     private static final int MSG_CLOSE_ALL_DOWNLOAD_TASK 	= 6;
     
-    private DownloadTask tasks[];
+    private Downloader tasks[];
+//    private DownloadTask tasks[];
 //    private DownloadMgr tasks[];
     private ListAdapter adapter;
-    private DownloadTaskListener downloadTaskListener = new DownloadTaskListener() {
+    private DownloaderListener downloadTaskListener = new DownloaderListener() {
         
 	@Override
-	public void updateProcess(DownloadTask mgr) {
+	public void updateProcess(Downloader mgr) {
 	    // TODO Auto-generated method stub
 	    for(int i = 0; i < Utils.url.length; i++) {
 		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
@@ -55,7 +56,7 @@ public class FileDownloadActivity extends ListActivity {
 	}
 
 	@Override
-	public void finishDownload(DownloadTask mgr) {
+	public void finishDownload(Downloader mgr) {
 	    for(int i = 0; i < Utils.url.length; i++) {
 		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
 		    Button btnStart = (Button)adapter.viewList.get(i).findViewById(R.id.btn_start);
@@ -68,6 +69,17 @@ public class FileDownloadActivity extends ListActivity {
 		    btnStop.setVisibility(8);
 		    btnContinue.setVisibility(8);
 		    FileDownloadActivity.this.installAPK(i);
+		    
+		    Log.v(null, "Test threadNum:" + Downloader.THREADNUM +
+			    " totalSize:" + mgr.getTotalSize() + 
+			    " totalTIme:" + mgr.getTotalTime() +
+			    " speed:" + mgr.getDownloadSpeed()
+			    );
+		    
+//		    if (Downloader.THREADNUM <= 30) {
+//			Downloader.THREADNUM += 5;
+//			startDownload(i);
+//		    }
 		}		
 	    }
 	}
@@ -194,7 +206,8 @@ public class FileDownloadActivity extends ListActivity {
         setListAdapter(adapter);
              
 //        tasks = new DownloadMgr[Utils.url.length];
-        tasks = new DownloadTask[Utils.url.length];
+//        tasks = new DownloadTask[Utils.url.length];
+        tasks = new Downloader[Utils.url.length];
         handler.post(runnable);
     }
     
@@ -210,10 +223,10 @@ public class FileDownloadActivity extends ListActivity {
         tasks[viewPos].getDownloadSpeed() + "kbps" + " " + 
         Utils.size(tasks[viewPos].getDownloadSize()) + "/" + Utils.size(tasks[viewPos].getTotalSize()));
         
-        Log.i(TAG,viewPos + " " + (int) tasks[viewPos].getDownloadPercent());
+//        Log.i(TAG,viewPos + " " + (int) tasks[viewPos].getDownloadPercent());
     }
     
-    public void startDownload(int viewPos) {	
+    public synchronized void startDownload(int viewPos) {	
 	    if (!Utils.isSDCardPresent()) {
 		Toast.makeText(this, "未发现SD卡", Toast.LENGTH_LONG);
 		return;
@@ -227,14 +240,15 @@ public class FileDownloadActivity extends ListActivity {
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
 	    if (file.exists()) file.delete();	
 	    try {
-		tasks[viewPos] = new DownloadTask(
+		tasks[viewPos] = new Downloader(
 		Utils.url[viewPos], 
-		Utils.APK_ROOT,
+		Utils.APK_ROOT,this,
 		downloadTaskListener);
 	    } catch (MalformedURLException e) {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
 	    }
+	    tasks[viewPos].clearDownloadRecord();
 	    tasks[viewPos].execute();   
 //	    if (!Utils.isSDCardPresent()) {
 //		Toast.makeText(this, "未发现SD卡", Toast.LENGTH_LONG);
@@ -263,14 +277,14 @@ public class FileDownloadActivity extends ListActivity {
 //	    tasks[viewPos].start();   
     }
     
-    public void pauseDownload(int viewPos) {
+    public synchronized void pauseDownload(int viewPos) {
 	    if (tasks[viewPos] != null) {
 //		tasks[viewPos].pause();
 		tasks[viewPos].onCancelled();
 	    }
     }
     
-    public void stopDownload(int viewPos) {
+    public synchronized void stopDownload(int viewPos) {
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
 	    if (file.exists()) file.delete();
 	    
@@ -281,13 +295,13 @@ public class FileDownloadActivity extends ListActivity {
 	    tasks[viewPos] = null;
     }
     
-    public void continueDownload(int viewPos) {
+    public synchronized void continueDownload(int viewPos) {
 //	    tasks[viewPos].start();	
 //	startDownload(viewPos);
 	    try {
-		tasks[viewPos] = new DownloadTask(
+		tasks[viewPos] = new Downloader(
 		Utils.url[viewPos], 
-		Utils.APK_ROOT,
+		Utils.APK_ROOT,this,
 		downloadTaskListener);
 	    } catch (MalformedURLException e) {
 		// TODO Auto-generated catch block

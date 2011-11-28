@@ -26,6 +26,7 @@
             android:label="@string/app_name"
             android:name=".ImageActivity" >
         </activity>
+         
     </application>
 
 </manifest>
