@@ -67,6 +67,7 @@ public class FileDownloadActivity extends ListActivity {
 		    btnPause.setVisibility(8);
 		    btnStop.setVisibility(8);
 		    btnContinue.setVisibility(8);
+		    Log.i("TEST", "" + mgr.getTotalSize() + " " + mgr.getTotalTime() + " " + mgr.getDownloadSpeed());
 		    FileDownloadActivity.this.installAPK(i);
 		}		
 	    }

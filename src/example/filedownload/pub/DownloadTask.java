@@ -1,16 +1,18 @@
 package example.filedownload.pub;
-
 import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.os.AsyncTask;
 import android.os.Environment;
@@ -22,8 +24,8 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
     public final static int ERROR_NONE = 0;
     public final static int ERROR_SD_NO_MEMORY = 1;
     public final static int ERROR_BLOCK_INTERNET = 2;
-    
-    private final static int BUFFER_SIZE = 1024 * 8;
+    public final static int TIME_OUT = 30000;
+    private final static int BUFFER_SIZE = 1024 * 4;
     
     private Throwable exception;
     private RandomAccessFile outputStream;
@@ -37,12 +39,12 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
     private long downloadPercent;
     private long networkSpeed;		// 网速
     private long previousTime;
+    private long totalTime;
     private int errStausCode = ERROR_NONE;
     private boolean interrupt = false;
     
     private final class ProgressReportingRandomAccessFile extends RandomAccessFile {
 	private int progress = 0;
-	
 	public ProgressReportingRandomAccessFile(File file, String mode)
 		throws FileNotFoundException {
 	    super(file, mode);
@@ -85,9 +87,13 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	return this.networkSpeed;
     }
     
+    public long getTotalTime() {
+	return this.totalTime;
+    }
+    
     @Override
     protected void onPreExecute() {
-
+	listener.preDownload();
     }
 
     @Override
@@ -111,10 +117,11 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	        
 	      }
 	    } else {
-		this.downloadSize = progress[0];
-		this.downloadPercent = (downloadSize + previousFileSize)* 100 / totalSize;
-		this.networkSpeed = downloadSize / (System.currentTimeMillis() - previousTime);
-		Log.v(null, ""+ downloadPercent + " " + totalSize + " " + downloadSize);
+		downloadSize = progress[0];
+		downloadPercent = (downloadSize + previousFileSize)* 100 / totalSize;
+		totalTime = System.currentTimeMillis() - previousTime;
+		networkSpeed = downloadSize / totalTime;	
+//		Log.v(null, ""+ downloadPercent + " " + totalSize + " " + downloadSize);
 		listener.updateProcess(this);
 	    }
 	  }
@@ -141,23 +148,42 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	      interrupt = true;
 	  }
 
-	  private long download() throws Exception {
-	    URLConnection connection = null;
-	    try {
-	      connection = URL.openConnection();
-	    } catch (IOException e) {
-		Log.v(null, "Cannot open URL: " + url, e);
-	    }
-
-	    totalSize = connection.getContentLength();
+	  private long download() throws Exception {	      
+//	    URLConnection connection = null;
+//	    try {
+//	      connection = URL.openConnection();
+//	    } catch (IOException e) {
+//		Log.v(null, "Cannot open URL: " + url, e);
+//	    }
+//
+//	    totalSize = connection.getContentLength();
 		
+//	      HttpClient client = new DefaultHttpClient();
+	      AndroidHttpClient client = AndroidHttpClient.newInstance("DownloadTask");
+	      HttpGet httpGet = new HttpGet(url);  
+	      HttpResponse response = client.execute(httpGet);   
+	      
+	      HttpEntity entity = response.getEntity();
+
+	      totalSize = entity.getContentLength();
+	      
+	      
 	    if (file.exists() && totalSize == file.length()) {
 		Log.v(null, "Output file already exists. Skipping download.");
 		return 0l;
 	    } else if (file.exists() && totalSize > file.length() && file.length() > 0) {
-		connection = URL.openConnection();
-		connection.setRequestProperty("Range", "bytes="+ file.length() + "-" + totalSize);
-		previousFileSize = file.length();
+//		
+//		connection = URL.openConnection();
+//		connection.setRequestProperty("Range", "bytes="+ file.length() + "-" + totalSize);
+//		previousFileSize = file.length();
+		client = AndroidHttpClient.newInstance("DownloadTask");
+//		client = new DefaultHttpClient();
+		httpGet = new HttpGet(url);  
+		httpGet.addHeader("Range", "bytes="+ file.length() + "-" + totalSize);
+		response = client.execute(httpGet);   		      
+		entity = response.getEntity();
+		previousFileSize = entity.getContentLength();     
+
 		Log.v(null, "File is not complete, download now.");
 		Log.v(null, "File length:" + file.length() + " totalSize:" + totalSize);
 	    }
@@ -178,7 +204,8 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 
 	    publishProgress(0, (int)totalSize);
 
-	    int bytesCopied = copy(connection.getInputStream(), outputStream);
+//	    int bytesCopied = copy(connection.getInputStream(), outputStream);
+	    int bytesCopied = copy(entity.getContent(), outputStream);
 	    
 	    if (bytesCopied != totalSize && totalSize != -1) {
 	      throw new IOException("Download incomplete: " + bytesCopied + " != " + totalSize);
@@ -196,10 +223,33 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	      out.seek(out.length());
 	      
 	      int count = 0, n = 0;
+	      long errorBlockTimePreviousTime = -1, expireTime = 0;
 	      try {
-	        while ((n = in.read(buffer, 0, BUFFER_SIZE)) != -1 && !interrupt) {
+	        while (!interrupt) {
+	          n = in.read(buffer, 0, BUFFER_SIZE);
+	          if (n == -1) {
+	              break;
+	          }
+	          
 	          out.write(buffer, 0, n);
+	          
 	          count += n;
+	          if (networkSpeed == 0) {
+	              if (errorBlockTimePreviousTime > 0) {
+	        	  expireTime = System.currentTimeMillis() - errorBlockTimePreviousTime;
+	        	  if (expireTime > TIME_OUT) {
+	        	      errStausCode = ERROR_BLOCK_INTERNET;
+	        	      interrupt = true;
+	        	  }
+	              }
+	              else {
+	        	  errorBlockTimePreviousTime = System.currentTimeMillis();
+	              }
+	          }
+	          else {
+	              expireTime = 0;
+	              errorBlockTimePreviousTime = -1;
+	          }
 	        }
 	      } finally {
 	        try {
@@ -208,34 +258,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	          Log.e(null,e.getMessage(), e);
 	        }
 	        try {
-	          in.close();
-	        } catch (IOException e) {
-	          Log.e(null,e.getMessage(), e);
-	        }
-	      }
-	      return count;
-	    }
-	  
-	  public int copy(InputStream input, OutputStream output) throws Exception, IOException {
-	      byte[] buffer = new byte[BUFFER_SIZE];
-
-	      BufferedInputStream in = new BufferedInputStream(input, BUFFER_SIZE);
-	      BufferedOutputStream out = new BufferedOutputStream(output, BUFFER_SIZE);
-	      int count = 0, n = 0;
-	      try {
-	        while ((n = in.read(buffer, 0, BUFFER_SIZE)) != -1 && !interrupt) {
-	          out.write(buffer, 0, n);
-	          count += n;
-	        }
-	        out.flush();
-	      } finally {
-	        try {
-	          out.close();
-	        } catch (IOException e) {
-	          Log.e(null,e.getMessage(), e);
-	        }
-	        try {
-	          in.close();
+	            in.close();
 	        } catch (IOException e) {
 	          Log.e(null,e.getMessage(), e);
 	        }
