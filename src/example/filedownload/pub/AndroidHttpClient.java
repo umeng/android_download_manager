@@ -57,7 +57,6 @@ import org.apache.http.protocol.HttpContext;
 
 import android.content.ContentResolver;
 import android.content.Context;
-import android.net.SSLCertificateSocketFactory;
 import android.os.Looper;
 import android.util.Log;
 

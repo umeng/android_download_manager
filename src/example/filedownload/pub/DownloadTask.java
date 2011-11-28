@@ -176,6 +176,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 //		connection = URL.openConnection();
 //		connection.setRequestProperty("Range", "bytes="+ file.length() + "-" + totalSize);
 //		previousFileSize = file.length();
+		client.close();
 		client = AndroidHttpClient.newInstance("DownloadTask");
 //		client = new DefaultHttpClient();
 		httpGet = new HttpGet(url);  
@@ -211,6 +212,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	      throw new IOException("Download incomplete: " + bytesCopied + " != " + totalSize);
 	    }
 	    outputStream.close();
+	    client.close();
 	    Log.v(null, "Download completed successfully.");
 	    return bytesCopied;
 	  }
