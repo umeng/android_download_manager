@@ -1,4 +1,4 @@
-package example.filedownload.pub;
+﻿package example.filedownload.pub;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +25,7 @@ public class Downloader extends AsyncTask<Void, Integer, Long> {
     public final static int ERROR_BLOCK_INTERNET = 2;
     private final static int TIME_OUT = 30000;
     public static int THREADNUM = 1;
-    
+    public static int TEST = 0;
     private URL	 URL;
     private File file;
     private String url;
