@@ -18,6 +18,7 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import example.filedownload.pub.DownloadMgr;
 import example.filedownload.pub.DownloadTask;
 import example.filedownload.pub.DownloadTaskListener;
 
@@ -37,6 +38,8 @@ public class FileDownloadActivity extends ListActivity {
     private static final int MSG_INSTALL_APK	 	= 5;
     private static final int MSG_CLOSE_ALL_DOWNLOAD_TASK 	= 6;
     
+    private DownloadMgr mgr;
+    
     private DownloadTask tasks[];
 //    private DownloadTask tasks[];
 //    private DownloadMgr tasks[];
@@ -48,7 +51,7 @@ public class FileDownloadActivity extends ListActivity {
 	    // TODO Auto-generated method stub
 	    for(int i = 0; i < Utils.url.length; i++) {
 		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
-		    FileDownloadActivity.this.updateDownload(i);
+		    FileDownloadActivity.this.updateDownload(i,mgr);
 		}
 	    }
 	}
@@ -166,17 +169,17 @@ public class FileDownloadActivity extends ListActivity {
         handler.post(runnable);
     }
     
-    public void updateDownload(int viewPos) {
+    public void updateDownload(int viewPos,DownloadTask mgr) {
         View convertView = adapter.getView(viewPos, getListView(), null);
         ProgressBar pb = (ProgressBar)convertView.findViewById(R.id.progressBar);
         
-        pb.setProgress((int) tasks[viewPos].getDownloadPercent());
+        pb.setProgress((int) mgr.getDownloadPercent());
         
         TextView view = (TextView) convertView.findViewById(R.id.progress_text_view);
         view.setText( "" +
-        (int) tasks[viewPos].getDownloadPercent() + "%" + " " + 
-        tasks[viewPos].getDownloadSpeed() + "kbps" + " " + 
-        Utils.size(tasks[viewPos].getDownloadSize()) + "/" + Utils.size(tasks[viewPos].getTotalSize()));
+        (int) mgr.getDownloadPercent() + "%" + " " + 
+        mgr.getDownloadSpeed() + "kbps" + " " + 
+        Utils.size(mgr.getDownloadSize()) + "/" + Utils.size(mgr.getTotalSize()));
         
 //        Log.i(TAG,viewPos + " " + (int) tasks[viewPos].getDownloadPercent());
     }
@@ -192,6 +195,13 @@ public class FileDownloadActivity extends ListActivity {
 		return;
 	    }
 	    
+//	    if (mgr == null) {
+//		mgr = new DownloadMgr(this, "umeng", downloadTaskListener);
+//		mgr.start();
+//	    }
+//	    
+//	    mgr.post(Utils.url[viewPos]);
+	    
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
 	    if (file.exists()) file.delete();	
 	    try {
@@ -204,6 +214,8 @@ public class FileDownloadActivity extends ListActivity {
 		e.printStackTrace();
 	    }
 	    tasks[viewPos].execute();   
+	    
+	    
 //	    if (!Utils.isSDCardPresent()) {
 //		Toast.makeText(this, "未发现SD卡", Toast.LENGTH_LONG);
 //		return;
@@ -233,9 +245,12 @@ public class FileDownloadActivity extends ListActivity {
     
     public synchronized void pauseDownload(int viewPos) {
 	    if (tasks[viewPos] != null) {
-//		tasks[viewPos].pause();
 		tasks[viewPos].onCancelled();
 	    }
+	
+//	if (mgr != null) {
+//	    mgr.pause();
+//	}
     }
     
     public synchronized void stopDownload(int viewPos) {
@@ -252,6 +267,7 @@ public class FileDownloadActivity extends ListActivity {
     public synchronized void continueDownload(int viewPos) {
 //	    tasks[viewPos].start();	
 //	startDownload(viewPos);
+	tasks[viewPos] = null;
 	    try {
 		tasks[viewPos] = new DownloadTask(this,
 		Utils.url[viewPos], 

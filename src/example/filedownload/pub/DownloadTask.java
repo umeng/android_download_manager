@@ -5,18 +5,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -31,7 +26,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
     public final static int ERROR_BLOCK_INTERNET = 2;
     public final static int ERROR_UNKONW = 3;
     public final static int TIME_OUT = 30000;
-    private final static int BUFFER_SIZE = 1024 * 4;
+    private final static int BUFFER_SIZE = 1024 * 8;
     
     private URL	 URL;
     private File file;
@@ -65,6 +60,11 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	    progress += count;		
 	    publishProgress(progress);
 	}
+    }
+    
+    public DownloadTask(Context context,
+	    String url, String path) throws MalformedURLException {
+	this(context, url, path, null);
     }
     
     public DownloadTask(Context context,
@@ -104,13 +104,14 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
     
     @Override
     protected void onPreExecute() {
+	previousTime = System.currentTimeMillis();
+	if (listener != null)
 	listener.preDownload();
     }
 
     @Override
     protected Long doInBackground(Void... params) {
 	try {
-	    previousTime = System.currentTimeMillis();
 		return download();
 	    } catch (Exception e) {
 		if (client != null) {
@@ -127,16 +128,17 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	    if (progress.length > 1) {
 	      totalSize = progress[1];
 	      if (totalSize == -1) {
+		  if (listener != null)
 		  listener.errorDownload(ERROR_UNKONW);
 	      } else {
 		  
 	      }
 	    } else {
+		totalTime = System.currentTimeMillis() - previousTime;
 		downloadSize = progress[0];
 		downloadPercent = (downloadSize + previousFileSize)* 100 / totalSize;
-		totalTime = System.currentTimeMillis() - previousTime;
 		networkSpeed = downloadSize / totalTime;	
-		Log.v(null, ""+ downloadSize + " " + totalTime);
+		if (listener != null)
 		listener.updateProcess(this);
 	    }
 	  }
@@ -145,6 +147,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	  protected void onPostExecute(Long result) {
 	    if (interrupt) {
 		if (errStausCode != ERROR_NONE) {
+		    if (listener != null)
 		    listener.errorDownload(errStausCode);
 		}
 		
@@ -154,6 +157,7 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	    if (exception != null) {
 		Log.v(null, "Download failed.", exception);
 	    }
+	    if (listener != null)
 	    listener.finishDownload(this);
 	  }
 
@@ -320,35 +324,5 @@ public class DownloadTask extends AsyncTask<Void, Integer, Long> {
 	    		e.printStackTrace();
 	    		return false;
 	    	}
-	    }
-	    
-		/*
-		 * MD5加密
-		 */
-		private static String getMD5Str(String str) {  
-		    MessageDigest msgDigit = null;
-		    try {
-			    msgDigit = MessageDigest.getInstance("MD5");
-			    msgDigit.reset();
-			    msgDigit.update(str.getBytes("UTF-8"));
-		    } catch (NoSuchAlgorithmException e) {
-			System.out.println("NoSuchAlgorithmException caught!");     
-			System.exit(-1);     
-		    } catch (UnsupportedEncodingException e) {     
-			e.printStackTrace();     
-		    } 
-		    
-		    byte[] byteArray = msgDigit.digest();   
-		    StringBuffer buf = new StringBuffer();  
-		    for (int i = 0; i < byteArray.length; i++) {
-			if (Integer.toHexString(0xFF & byteArray[i]).length() == 1) {
-			    buf.append("0").append(Integer.toHexString(0xFF & byteArray[i]));
-			}
-			else {
-			    buf.append(Integer.toHexString(0xFF & byteArray[i]));
-			}
-		    }
-		    //16位加密，从第9位到25位
-		    return buf.substring(8,24).toString().toUpperCase();
-		}	  
+	    }	  
 	}
