@@ -18,8 +18,6 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
-import example.filedownload.pub.DownloadListener;
-import example.filedownload.pub.DownloadMgr;
 import example.filedownload.pub.DownloadTask;
 import example.filedownload.pub.DownloadTaskListener;
 
@@ -96,50 +94,6 @@ public class FileDownloadActivity extends ListActivity {
 	    // TODO Auto-generated method stub
 	    Log.i(TAG,"errorDownload");
 	}
-    };
-    
-    private DownloadListener downloadListener = new DownloadListener() {
-
-	@Override
-	public void updateProcess(DownloadMgr mgr) {
-	    // TODO Auto-generated method stub
-	    for(int i = 0; i < Utils.url.length; i++) {
-		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
-		    FileDownloadActivity.this.updateDownload(i);
-		}
-	    }
-	}
-
-	@Override
-	public void finishDownload(DownloadMgr mgr) {
-	    for(int i = 0; i < Utils.url.length; i++) {
-		if (Utils.url[i].equalsIgnoreCase(mgr.getUrl())) {
-		    Button btnStart = (Button)adapter.viewList.get(i).findViewById(R.id.btn_start);
-		    Button btnPause = (Button)adapter.viewList.get(i).findViewById(R.id.btn_pause);
-		    Button btnStop = (Button)adapter.viewList.get(i).findViewById(R.id.btn_stop);
-		    Button btnContinue = (Button)adapter.viewList.get(i).findViewById(R.id.btn_continue);
-
-		    btnStart.setVisibility(0);
-		    btnPause.setVisibility(8);
-		    btnStop.setVisibility(8);
-		    btnContinue.setVisibility(8);
-		    FileDownloadActivity.this.installAPK(i);
-		}		
-	    }
-	}
-
-	@Override
-	public void preDownload() {
-	    // TODO Auto-generated method stub
-	    Log.i(TAG,"preDownload");
-	}
-
-	@Override
-	public void errorDownload(int error) {
-	    // TODO Auto-generated method stub
-	    Log.i(TAG,"errorDownload");
-	}
-
     };
     
     private Runnable runnable = new Runnable() {
@@ -241,7 +195,7 @@ public class FileDownloadActivity extends ListActivity {
 	    File file = new File(Utils.APK_ROOT + Utils.getFileNameFromUrl(Utils.url[viewPos]));
 	    if (file.exists()) file.delete();	
 	    try {
-		tasks[viewPos] = new DownloadTask(
+		tasks[viewPos] = new DownloadTask(this,
 		Utils.url[viewPos], 
 		Utils.APK_ROOT,
 		downloadTaskListener);
@@ -299,7 +253,7 @@ public class FileDownloadActivity extends ListActivity {
 //	    tasks[viewPos].start();	
 //	startDownload(viewPos);
 	    try {
-		tasks[viewPos] = new DownloadTask(
+		tasks[viewPos] = new DownloadTask(this,
 		Utils.url[viewPos], 
 		Utils.APK_ROOT,
 		downloadTaskListener);

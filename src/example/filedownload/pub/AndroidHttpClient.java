@@ -116,7 +116,7 @@ public final class AndroidHttpClient implements HttpClient {
         HttpClientParams.setRedirecting(params, false);
 
         // Use a session cache for SSL sockets
-        SSLSessionCache sessionCache = context == null ? null : new SSLSessionCache(context);
+//        SSLSessionCache sessionCache = context == null ? null : new SSLSessionCache(context);
 
         // Set the specified user agent and register standard protocols.
         HttpProtocolParams.setUserAgent(params, userAgent);
@@ -463,4 +463,5 @@ public final class AndroidHttpClient implements HttpClient {
     public static long parseDate(String dateString) {
         return HttpDateTime.parse(dateString);
     }
+    
 }
